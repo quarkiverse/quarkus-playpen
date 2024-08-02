@@ -1,0 +1,11 @@
+apiVersion: "io.quarkiverse.playpen/v1"
+kind: PlaypenConfig
+metadata:
+  name: global
+  namespace: quarkus
+spec:
+  exposePolicy: secureRoute
+  authType: none
+  logLevel: DEBUG
+  proxy:
+    image: "default-route-openshift-image-registry.apps-crc.testing/default/quarkus-playpen-proxy:latest"
