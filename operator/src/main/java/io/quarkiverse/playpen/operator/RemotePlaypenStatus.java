@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class PlaypenStatus {
+public class RemotePlaypenStatus {
     public static class CleanupResource {
         private String type;
         private String name;

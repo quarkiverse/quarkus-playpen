@@ -20,8 +20,8 @@ import io.vertx.core.http.HttpServer;
 import io.vertx.ext.web.Router;
 
 @ApplicationScoped
-public class QuarkusPlaypenServer {
-    protected static final Logger log = Logger.getLogger(QuarkusPlaypenServer.class);
+public class QuarkusRemotePlaypenServer {
+    protected static final Logger log = Logger.getLogger(QuarkusRemotePlaypenServer.class);
 
     @Inject
     @ConfigProperty(name = "service.name")
@@ -44,22 +44,6 @@ public class QuarkusPlaypenServer {
     protected int clientApiPort;
 
     @Inject
-    @ConfigProperty(name = "idle.timeout", defaultValue = "60000")
-    protected int idleTimeout;
-
-    @Inject
-    @ConfigProperty(name = "poll.timeout", defaultValue = "5000")
-    protected int pollTimeout;
-
-    @Inject
-    @ConfigProperty(name = "authentication.type", defaultValue = "none")
-    protected String authType;
-
-    @Inject
-    @ConfigProperty(name = "oauth.url", defaultValue = "oauth-openshift.openshift-authentication.svc.cluster.local")
-    protected String oauthUrl;
-
-    @Inject
     @ConfigProperty(name = "secret", defaultValue = "badsecret")
     protected String secret;
 
@@ -71,16 +55,24 @@ public class QuarkusPlaypenServer {
     @ConfigProperty(name = "client.path.prefix")
     protected Optional<String> clientPathPrefix;
 
-    protected PlaypenServer proxyServer;
+    @Inject
+    @ConfigProperty(name = "idle.timeout", defaultValue = "60000")
+    protected int idleTimeout;
+
+    @Inject
+    @ConfigProperty(name = "authentication.type", defaultValue = "none")
+    protected String authType;
+
+    @Inject
+    @ConfigProperty(name = "oauth.url", defaultValue = "oauth-openshift.openshift-authentication.svc.cluster.local")
+    protected String oauthUrl;
+
+    protected RemotePlaypenServer proxyServer;
     private HttpServer clientApi;
 
     public void start(@Observes StartupEvent start, Vertx vertx, Router proxyRouter) {
-        proxyServer = new PlaypenServer();
+        proxyServer = new RemotePlaypenServer();
         proxyServer.setVersion(version);
-        proxyServer.setIdleTimeout(idleTimeout);
-        log.info("Idle timeout millis: " + idleTimeout);
-        proxyServer.setPollTimeout(pollTimeout);
-        log.info("Poll timeout millis: " + pollTimeout);
         if (ProxySessionAuth.OPENSHIFT_BASIC_AUTH.equalsIgnoreCase(authType)) {
             log.info("Openshift Basic Auth: " + oauthUrl);
             proxyServer.setAuth(new OpenshiftBasicAuth(vertx, oauthUrl));
@@ -92,7 +84,6 @@ public class QuarkusPlaypenServer {
             proxyServer.setAuth(new NoAuth());
         }
         if (clientPathPrefix.isPresent()) {
-            log.info("Client Path Prefix: " + clientPathPrefix.get());
             proxyServer.setClientPathPrefix(clientPathPrefix.get());
         }
         ServiceConfig config = new ServiceConfig(serviceName, serviceHost, servicePort, serviceSsl);

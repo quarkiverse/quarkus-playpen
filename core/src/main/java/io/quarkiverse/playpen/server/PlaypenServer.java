@@ -30,8 +30,6 @@ import io.vertx.httpproxy.HttpProxy;
 
 public class PlaypenServer {
 
-    public static final String VERSION = "1.0";
-
     public static AutoCloseable create(Vertx vertx, ServiceConfig config, int proxyPort, int clientApiPort) {
         HttpServer proxy = vertx.createHttpServer();
         HttpServer clientApi = vertx.createHttpServer();
@@ -333,6 +331,11 @@ public class PlaypenServer {
     protected ProxySessionAuth auth = new NoAuth();
     protected String clientPathPrefix;
     protected String clientApiPath = CLIENT_API_PATH;
+    protected String version = "unknown";
+
+    public void setVersion(String version) {
+        this.version = version;
+    }
 
     public void setTimerPeriod(long timerPeriod) {
         this.timerPeriod = timerPeriod;
@@ -371,7 +374,7 @@ public class PlaypenServer {
         }
         // CLIENT API
         clientApiRouter.route(clientApiPath + "/version").method(HttpMethod.GET)
-                .handler((ctx) -> ctx.response().setStatusCode(200).putHeader("Content-Type", "text/plain").end(VERSION));
+                .handler((ctx) -> ctx.response().setStatusCode(200).putHeader("Content-Type", "text/plain").end(version));
         clientApiRouter.route(clientApiPath + "/poll/session/:session").method(HttpMethod.POST).handler(this::pollNext);
         clientApiRouter.route(clientApiPath + "/connect").method(HttpMethod.POST).handler(this::clientConnect);
         clientApiRouter.route(clientApiPath + "/connect").method(HttpMethod.DELETE).handler(this::deleteClientConnection);
@@ -385,14 +388,14 @@ public class PlaypenServer {
 
         // API routes
         proxyRouter.route(API_PATH + "/version").method(HttpMethod.GET)
-                .handler((ctx) -> ctx.response().setStatusCode(200).putHeader("Content-Type", "text/plain").end(VERSION));
+                .handler((ctx) -> ctx.response().setStatusCode(200).putHeader("Content-Type", "text/plain").end(version));
         proxyRouter.route(API_PATH + "/clientIp").method(HttpMethod.GET)
                 .handler((ctx) -> ctx.response().setStatusCode(200).putHeader("Content-Type", "text/plain")
                         .end("" + ctx.request().remoteAddress().hostAddress()));
         proxyRouter.route(API_PATH + "/cookie/set").method(HttpMethod.GET).handler(this::setCookieApi);
         proxyRouter.route(API_PATH + "/cookie/get").method(HttpMethod.GET).handler(this::getCookieApi);
         proxyRouter.route(API_PATH + "/cookie/remove").method(HttpMethod.GET).handler(this::removeCookieApi);
-        clientApiRouter.route(API_PATH + "/*").handler(routingContext -> routingContext.fail(404));
+        proxyRouter.route(API_PATH + "/*").handler(routingContext -> routingContext.fail(404));
         proxyRouter.route().handler(this::proxy);
 
         // proxy to deployed services

@@ -40,8 +40,6 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  labels:
-    app.kubernetes.io/part-of: quarkus-playpen
   name: playpen-cluster-role
 rules:
   - apiGroups:
@@ -58,6 +56,14 @@ rules:
       - update
       - create
       - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/part-of: quarkus-playpen
+  name: playpen-operator-cluster-role
+rules:
   - apiGroups:
       - ""
       - apps
@@ -99,6 +105,46 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  name: remoteplaypen-cluster-role
+rules:
+  - apiGroups:
+      - io.quarkiverse.playpen
+    resources:
+      - remoteplaypens
+      - remoteplaypens/status
+      - remoteplaypens/finalizers
+    verbs:
+      - get
+      - list
+      - watch
+      - patch
+      - update
+      - create
+      - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: remoteplaypenconfig-cluster-role
+rules:
+  - apiGroups:
+      - io.quarkiverse.playpen
+    resources:
+      - remoteplaypenconfigs
+      - remoteplaypenconfigs/status
+      - remoteplaypenconfigs/finalizers
+    verbs:
+      - get
+      - list
+      - watch
+      - patch
+      - update
+      - create
+      - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
   labels:
     app.kubernetes.io/part-of: quarkus-playpen
   annotations:
@@ -112,22 +158,6 @@ rules:
     verbs:
       - get
       - list
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  labels:
-    app.kubernetes.io/name: quarkus-playpen-operator
-    app.kubernetes.io/part-of: quarkus-playpen
-  name: playpenconfig-crd-validating-role-binding
-roleRef:
-  kind: ClusterRole
-  apiGroup: rbac.authorization.k8s.io
-  name: josdk-crd-validating-cluster-role
-subjects:
-  - kind: ServiceAccount
-    name: quarkus-playpen-operator
-    namespace: quarkus
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -149,7 +179,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   labels:
-    app.kubernetes.io/name: quarkus-devsplaypenpace-operator
+    app.kubernetes.io/name: quarkus-playpen-operator
     app.kubernetes.io/part-of: quarkus-playpen
   name: playpenconfig-role-binding
 roleRef:
@@ -172,6 +202,54 @@ roleRef:
   kind: ClusterRole
   apiGroup: rbac.authorization.k8s.io
   name: playpen-cluster-role
+subjects:
+  - kind: ServiceAccount
+    name: quarkus-playpen-operator
+    namespace: quarkus
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: quarkus-playpen-operator
+    app.kubernetes.io/part-of: quarkus-playpen
+  name: remoteplaypenconfig-role-binding
+roleRef:
+  kind: ClusterRole
+  apiGroup: rbac.authorization.k8s.io
+  name: remoteplaypenconfig-cluster-role
+subjects:
+  - kind: ServiceAccount
+    name: quarkus-playpen-operator
+    namespace: quarkus
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: quarkus-playpen-operator
+    app.kubernetes.io/part-of: quarkus-playpen
+  name: remoteplaypen-role-binding
+roleRef:
+  kind: ClusterRole
+  apiGroup: rbac.authorization.k8s.io
+  name: remoteplaypen-cluster-role
+subjects:
+  - kind: ServiceAccount
+    name: quarkus-playpen-operator
+    namespace: quarkus
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: quarkus-playpen-operator
+    app.kubernetes.io/part-of: quarkus-playpen
+  name: playpen-operator-cluster-role-binding
+roleRef:
+  kind: ClusterRole
+  apiGroup: rbac.authorization.k8s.io
+  name: playpen-operator-cluster-role
 subjects:
   - kind: ServiceAccount
     name: quarkus-playpen-operator
@@ -240,11 +318,13 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: PROXY_IMAGE
-              value: "quay.io/quarkus-playpen/playpen-proxy:latest"
+              value: "docker.io/quarkus-playpen/playpen-proxy:999-SNAPSHOT"
+            - name: REMOTE_PROXY_IMAGE
+              value: "docker.io/quarkus-playpen/remote-playpen-proxy:999-SNAPSHOT"
             - name: PROXY_IMAGEPULLPOLICY
-              value: "Always"
-          image: quay.io/quarkus-playpen/playpen-operator:latest
-          imagePullPolicy: Always
+              value: "IfNotPresent"
+          image: docker.io/quarkus-playpen/playpen-operator:999-SNAPSHOT
+          imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 3
             httpGet:

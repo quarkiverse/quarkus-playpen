@@ -7,7 +7,7 @@
         <version>999-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
-    <artifactId>playpen-proxy</artifactId>
+    <artifactId>remote-playpen-proxy</artifactId>
     <dependencies>
         <dependency>
             <groupId>io.quarkus</groupId>

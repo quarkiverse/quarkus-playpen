@@ -12,7 +12,16 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
-import io.fabric8.kubernetes.api.model.*;
+import io.fabric8.kubernetes.api.model.APIGroup;
+import io.fabric8.kubernetes.api.model.IntOrString;
+import io.fabric8.kubernetes.api.model.KubernetesResourceList;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
+import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.SecretBuilder;
+import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.ServiceBuilder;
+import io.fabric8.kubernetes.api.model.ServiceFluent;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.api.model.networking.v1.Ingress;
@@ -33,30 +42,30 @@ import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 import io.quarkiverse.operatorsdk.annotations.CSVMetadata;
 
-@ControllerConfiguration(namespaces = WATCH_ALL_NAMESPACES, name = "playpen")
-@CSVMetadata(displayName = "Playpen operator", description = "Setup of Playpen for a specific service")
-public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> {
-    protected static final Logger log = Logger.getLogger(PlaypenReconciler.class);
+@ControllerConfiguration(namespaces = WATCH_ALL_NAMESPACES, name = "remoteplaypen")
+@CSVMetadata(displayName = "Remote Playpen operator", description = "Setup of Remote Playpen for a specific service")
+public class RemotePlaypenReconciler implements Reconciler<RemotePlaypen>, Cleaner<RemotePlaypen> {
+    protected static final Logger log = Logger.getLogger(RemotePlaypenReconciler.class);
 
     @Inject
     OpenShiftClient client;
 
     @Inject
-    @ConfigProperty(name = "proxy.image", defaultValue = "quay.io/quarkus-playpen/playpen-proxy:latest")
+    @ConfigProperty(name = "remote.proxy.image", defaultValue = "quay.io/quarkus-playpen/remote-playpen-proxy:latest")
     String proxyImage;
 
     @Inject
     @ConfigProperty(name = "proxy.imagepullpolicy", defaultValue = "Always")
     String proxyImagePullPolicy;
 
-    private PlaypenConfigSpec getPlaypenConfig(Playpen primary) {
-        PlaypenConfig config = findPlaypenConfig(primary);
+    private RemotePlaypenConfigSpec getPlaypenConfig(RemotePlaypen primary) {
+        RemotePlaypenConfig config = findPlaypenConfig(primary);
         return toDefaultedSpec(config);
     }
 
-    private PlaypenConfig findPlaypenConfig(Playpen primary) {
-        MixedOperation<PlaypenConfig, KubernetesResourceList<PlaypenConfig>, Resource<PlaypenConfig>> configs = client
-                .resources(PlaypenConfig.class);
+    private RemotePlaypenConfig findPlaypenConfig(RemotePlaypen primary) {
+        MixedOperation<RemotePlaypenConfig, KubernetesResourceList<RemotePlaypenConfig>, Resource<RemotePlaypenConfig>> configs = client
+                .resources(RemotePlaypenConfig.class);
         String configNamespace = "quarkus";
         String configName = "global";
         if (primary.getSpec() != null && primary.getSpec().getConfig() != null) {
@@ -66,22 +75,22 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                 configNamespace = primary.getSpec().getConfigNamespace();
             }
         }
-        PlaypenConfig config = configs.inNamespace(configNamespace).withName(configName).get();
+        RemotePlaypenConfig config = configs.inNamespace(configNamespace).withName(configName).get();
         return config;
     }
 
-    public static String playpenDeployment(Playpen primary) {
+    public static String playpenDeployment(RemotePlaypen primary) {
         return primary.getMetadata().getName() + "-playpen";
     }
 
-    private void createProxyDeployment(Playpen primary, PlaypenConfigSpec config, AuthenticationType auth) {
+    private void createProxyDeployment(RemotePlaypen primary, RemotePlaypenConfigSpec config, AuthenticationType auth) {
         String serviceName = primary.getMetadata().getName();
         String name = playpenDeployment(primary);
         String image = proxyImage;
         String imagePullPolicy = proxyImagePullPolicy;
 
         var container = new DeploymentBuilder()
-                .withMetadata(PlaypenReconciler.createMetadata(primary, name))
+                .withMetadata(RemotePlaypenReconciler.createMetadata(primary, name))
                 .withNewSpec()
                 .withReplicas(1)
                 .withNewSelector()
@@ -106,7 +115,6 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
             container.addNewEnv().withName("QUARKUS_LOG_CATEGORY__IO_QUARKIVERSE_PLAYPEN__LEVEL").withValue(logLevel)
                     .endEnv();
         }
-        long pollTimeout = config.getPollTimeoutSeconds() * 1000;
         long idleTimeout = config.getIdleTimeoutSeconds() * 1000;
 
         var spec = container
@@ -114,7 +122,6 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                 .addNewEnv().withName("SERVICE_HOST").withValue(origin(primary)).endEnv()
                 .addNewEnv().withName("SERVICE_PORT").withValue("80").endEnv()
                 .addNewEnv().withName("SERVICE_SSL").withValue("false").endEnv()
-                .addNewEnv().withName("POLL_TIMEOUT").withValue(Long.toString(pollTimeout)).endEnv()
                 .addNewEnv().withName("IDLE_TIMEOUT").withValue(Long.toString(idleTimeout)).endEnv()
                 .addNewEnv().withName("CLIENT_API_PORT").withValue("8081").endEnv()
                 .addNewEnv().withName("AUTHENTICATION_TYPE").withValue(auth.name()).endEnv()
@@ -131,15 +138,15 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                 .endSpec()
                 .build();
         client.apps().deployments().resource(deployment).serverSideApply();
-        primary.getStatus().getCleanup().add(0, new PlaypenStatus.CleanupResource("deployment", name));
+        primary.getStatus().getCleanup().add(0, new RemotePlaypenStatus.CleanupResource("deployment", name));
 
     }
 
-    public static String origin(Playpen primary) {
+    public static String origin(RemotePlaypen primary) {
         return primary.getMetadata().getName() + "-origin";
     }
 
-    private void createOriginService(Playpen primary, PlaypenConfigSpec config) {
+    private void createOriginService(RemotePlaypen primary, RemotePlaypenConfigSpec config) {
         String serviceName = primary.getMetadata().getName();
         String name = origin(primary);
         Map<String, String> selector = null;
@@ -151,7 +158,7 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
             selector = primary.getStatus().getOldSelectors();
         }
         Service service = new ServiceBuilder()
-                .withMetadata(PlaypenReconciler.createMetadata(primary, name))
+                .withMetadata(RemotePlaypenReconciler.createMetadata(primary, name))
                 .withNewSpec()
                 .addNewPort()
                 .withName("http")
@@ -163,18 +170,18 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                 .withType("ClusterIP")
                 .endSpec().build();
         client.resource(service).serverSideApply();
-        primary.getStatus().getCleanup().add(0, new PlaypenStatus.CleanupResource("service", name));
+        primary.getStatus().getCleanup().add(0, new RemotePlaypenStatus.CleanupResource("service", name));
     }
 
-    private static String playpenServiceName(Playpen primary) {
+    private static String playpenServiceName(RemotePlaypen primary) {
         return primary.getMetadata().getName() + "-playpen";
     }
 
-    private void createClientService(Playpen primary, PlaypenConfigSpec config) {
+    private void createClientService(RemotePlaypen primary, RemotePlaypenConfigSpec config) {
         String name = playpenServiceName(primary);
         ExposePolicy exposePolicy = config.toExposePolicy();
         var spec = new ServiceBuilder()
-                .withMetadata(PlaypenReconciler.createMetadata(primary, name))
+                .withMetadata(RemotePlaypenReconciler.createMetadata(primary, name))
                 .withNewSpec();
         if (exposePolicy == ExposePolicy.nodePort || (primary.getSpec() != null && primary.getSpec().getNodePort() != null)) {
             spec.withType("NodePort");
@@ -197,12 +204,12 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                 .endSpec().build();
         client.resource(service).serverSideApply();
 
-        int routerTimeout = config.getPollTimeoutSeconds() + 1;
+        int routerTimeout = 60;
 
         if (exposePolicy == ExposePolicy.secureRoute) {
             String routeName = primary.getMetadata().getName() + "-playpen";
             Route route = new RouteBuilder()
-                    .withMetadata(PlaypenReconciler.createMetadataWithAnnotations(primary, routeName,
+                    .withMetadata(RemotePlaypenReconciler.createMetadataWithAnnotations(primary, routeName,
                             "haproxy.router.openshift.io/timeout", routerTimeout + "s"))
                     .withNewSpec().withNewTo().withKind("Service").withName(playpenServiceName(primary))
                     .endTo()
@@ -210,22 +217,22 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                     .withNewTls().withTermination("edge").withInsecureEdgeTerminationPolicy("Redirect").endTls()
                     .endSpec().build();
             client.adapt(OpenShiftClient.class).routes().resource(route).serverSideApply();
-            primary.getStatus().getCleanup().add(0, new PlaypenStatus.CleanupResource("route", routeName));
+            primary.getStatus().getCleanup().add(0, new RemotePlaypenStatus.CleanupResource("route", routeName));
         } else if (exposePolicy == ExposePolicy.route) {
             String routeName = primary.getMetadata().getName() + "-playpen";
             Route route = new RouteBuilder()
-                    .withMetadata(PlaypenReconciler.createMetadataWithAnnotations(primary, routeName,
+                    .withMetadata(RemotePlaypenReconciler.createMetadataWithAnnotations(primary, routeName,
                             "haproxy.router.openshift.io/timeout", routerTimeout + "s"))
                     .withNewSpec().withNewTo().withKind("Service").withName(playpenServiceName(primary))
                     .endTo()
                     .withNewPort().withNewTargetPort("http").endPort()
                     .endSpec().build();
             client.adapt(OpenShiftClient.class).routes().resource(route).serverSideApply();
-            primary.getStatus().getCleanup().add(0, new PlaypenStatus.CleanupResource("route", routeName));
+            primary.getStatus().getCleanup().add(0, new RemotePlaypenStatus.CleanupResource("route", routeName));
         } else if (exposePolicy == ExposePolicy.ingress) {
             String ingressName = primary.getMetadata().getName() + "-playpen";
             IngressFluent<IngressBuilder>.SpecNested<IngressBuilder> ingressSpec = new IngressBuilder()
-                    .withMetadata(PlaypenReconciler.createMetadataWithAnnotations(primary, ingressName,
+                    .withMetadata(RemotePlaypenReconciler.createMetadataWithAnnotations(primary, ingressName,
                             config.getIngress().getAnnotations()))
                     .withNewSpec();
 
@@ -260,12 +267,12 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
 
             Ingress ingress = (Ingress) ingressSpec.endSpec().build();
             client.network().v1().ingresses().resource(ingress).serverSideApply();
-            primary.getStatus().getCleanup().add(0, new PlaypenStatus.CleanupResource("ingress", ingressName));
+            primary.getStatus().getCleanup().add(0, new RemotePlaypenStatus.CleanupResource("ingress", ingressName));
         }
-        primary.getStatus().getCleanup().add(0, new PlaypenStatus.CleanupResource("service", name));
+        primary.getStatus().getCleanup().add(0, new RemotePlaypenStatus.CleanupResource("service", name));
     }
 
-    private static String getIngressPathPrefix(Playpen primary) {
+    private static String getIngressPathPrefix(RemotePlaypen primary) {
         return "/" + primary.getMetadata().getName() + "-playpen" + "-" + primary.getMetadata().getNamespace();
     }
 
@@ -277,26 +284,26 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
         return false;
     }
 
-    private static String playpenSecret(Playpen primary) {
+    private static String playpenSecret(RemotePlaypen primary) {
         return primary.getMetadata().getName() + "-playpen-auth";
     }
 
-    private void createSecret(Playpen playpen) {
+    private void createSecret(RemotePlaypen playpen) {
         String name = playpenSecret(playpen);
         String password = RandomStringUtils.randomAlphabetic(10);
         Secret secret = new SecretBuilder()
-                .withMetadata(PlaypenReconciler.createMetadata(playpen, name))
+                .withMetadata(RemotePlaypenReconciler.createMetadata(playpen, name))
                 .addToStringData("password", password)
                 .build();
         client.secrets().resource(secret).serverSideApply();
-        playpen.getStatus().getCleanup().add(0, new PlaypenStatus.CleanupResource("secret", name));
+        playpen.getStatus().getCleanup().add(0, new RemotePlaypenStatus.CleanupResource("secret", name));
     }
 
     @Override
-    public UpdateControl<Playpen> reconcile(Playpen playpen, Context<Playpen> context) {
+    public UpdateControl<RemotePlaypen> reconcile(RemotePlaypen playpen, Context<RemotePlaypen> context) {
         if (playpen.getStatus() == null) {
             log.info("reconcile");
-            PlaypenStatus status = new PlaypenStatus();
+            RemotePlaypenStatus status = new RemotePlaypenStatus();
             playpen.setStatus(status);
             try {
                 ServiceResource<Service> serviceResource = client.services().inNamespace(playpen.getMetadata().getNamespace())
@@ -306,8 +313,8 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                     status.setError("Service does not exist");
                     return UpdateControl.updateStatus(playpen);
                 }
-                PlaypenConfig config = findPlaypenConfig(playpen);
-                PlaypenConfigSpec configSpec = getPlaypenConfig(playpen);
+                RemotePlaypenConfig config = findPlaypenConfig(playpen);
+                RemotePlaypenConfigSpec configSpec = getPlaypenConfig(playpen);
                 AuthenticationType auth = configSpec.toAuthenticationType();
                 if (auth == AuthenticationType.secret) {
                     createSecret(playpen);
@@ -346,7 +353,7 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                 return UpdateControl.updateStatus(playpen);
             }
         } else {
-            return UpdateControl.<Playpen> noUpdate();
+            return UpdateControl.<RemotePlaypen> noUpdate();
         }
     }
 
@@ -359,7 +366,7 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
     }
 
     @Override
-    public DeleteControl cleanup(Playpen playpen, Context<Playpen> context) {
+    public DeleteControl cleanup(RemotePlaypen playpen, Context<RemotePlaypen> context) {
         log.info("cleanup");
         if (playpen.getStatus() == null) {
             return DeleteControl.defaultDelete();
@@ -368,7 +375,7 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
             resetServiceSelector(client, playpen);
         }
         if (playpen.getStatus().getCleanup() != null) {
-            for (PlaypenStatus.CleanupResource cleanup : playpen.getStatus().getCleanup()) {
+            for (RemotePlaypenStatus.CleanupResource cleanup : playpen.getStatus().getCleanup()) {
                 log.info("Cleanup: " + cleanup.getType() + " " + cleanup.getName());
                 if (cleanup.getType().equals("secret")) {
                     suppress(() -> client.secrets().inNamespace(playpen.getMetadata().getNamespace())
@@ -394,7 +401,7 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
         return DeleteControl.defaultDelete();
     }
 
-    public static void resetServiceSelector(KubernetesClient client, Playpen playpen) {
+    public static void resetServiceSelector(KubernetesClient client, RemotePlaypen playpen) {
         ServiceResource<Service> serviceResource = client.services().inNamespace(playpen.getMetadata().getNamespace())
                 .withName(playpen.getMetadata().getName());
         UnaryOperator<Service> edit = (s) -> {
@@ -407,7 +414,7 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
         serviceResource.edit(edit);
     }
 
-    static ObjectMeta createMetadata(Playpen resource, String name) {
+    static ObjectMeta createMetadata(RemotePlaypen resource, String name) {
         final var metadata = resource.getMetadata();
         return new ObjectMetaBuilder()
                 .withName(name)
@@ -416,7 +423,7 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                 .build();
     }
 
-    static ObjectMeta createMetadataWithAnnotations(Playpen resource, String name, String... annotations) {
+    static ObjectMeta createMetadataWithAnnotations(RemotePlaypen resource, String name, String... annotations) {
         final var metadata = resource.getMetadata();
         ObjectMetaBuilder builder = new ObjectMetaBuilder()
                 .withName(name)
@@ -430,7 +437,7 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
         return builder.withAnnotations(aMap).build();
     }
 
-    static ObjectMeta createMetadataWithAnnotations(Playpen resource, String name, Map<String, String> annotations) {
+    static ObjectMeta createMetadataWithAnnotations(RemotePlaypen resource, String name, Map<String, String> annotations) {
         final var metadata = resource.getMetadata();
         ObjectMetaBuilder builder = new ObjectMetaBuilder()
                 .withName(name)
@@ -445,9 +452,8 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
      * @param config
      * @return
      */
-    public PlaypenConfigSpec toDefaultedSpec(PlaypenConfig config) {
-        PlaypenConfigSpec spec = new PlaypenConfigSpec();
-        spec.setPollTimeoutSeconds(5);
+    public RemotePlaypenConfigSpec toDefaultedSpec(RemotePlaypenConfig config) {
+        RemotePlaypenConfigSpec spec = new RemotePlaypenConfigSpec();
         spec.setAuthType(AuthenticationType.secret.name());
         if (isOpenshift()) {
             spec.setExposePolicy(ExposePolicy.secureRoute.name());
@@ -455,26 +461,23 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
             spec.setExposePolicy(ExposePolicy.nodePort.name());
         }
         spec.setIdleTimeoutSeconds(60);
-        spec.setPollTimeoutSeconds(5);
 
         if (config == null || config.getSpec() == null)
             return spec;
 
-        PlaypenConfigSpec oldSpec = config.getSpec();
+        RemotePlaypenConfigSpec oldSpec = config.getSpec();
         spec.setLogLevel(oldSpec.getLogLevel());
         if (oldSpec.getIngress() != null) {
             spec.setExposePolicy(ExposePolicy.ingress.name());
             spec.setIngress(oldSpec.getIngress());
         } else if (oldSpec.toExposePolicy() == ExposePolicy.ingress) {
             spec.setExposePolicy(ExposePolicy.ingress.name());
-            spec.setIngress(new PlaypenConfigSpec.PlaypenIngress());
+            spec.setIngress(new RemotePlaypenConfigSpec.PlaypenIngress());
         }
-        if (oldSpec.getPollTimeoutSeconds() != null)
-            spec.setPollTimeoutSeconds(oldSpec.getPollTimeoutSeconds());
-        if (oldSpec.getIdleTimeoutSeconds() != null)
-            spec.setIdleTimeoutSeconds(oldSpec.getIdleTimeoutSeconds());
         if (oldSpec.getAuthType() != null)
             spec.setAuthType(oldSpec.getAuthType());
+        if (oldSpec.getIdleTimeoutSeconds() != null)
+            spec.setIdleTimeoutSeconds(oldSpec.getIdleTimeoutSeconds());
         if (oldSpec.getExposePolicy() != null)
             spec.setExposePolicy(oldSpec.getExposePolicy());
         return spec;
