@@ -14,18 +14,12 @@ import io.quarkiverse.playpen.server.auth.NoAuth;
 import io.quarkiverse.playpen.server.auth.ProxySessionAuth;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.Cookie;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
-import io.vertx.core.http.HttpClientRequest;
-import io.vertx.core.http.HttpClientResponse;
-import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpMethod;
-import io.vertx.core.streams.Pipe;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
-import io.vertx.httpproxy.Body;
 import io.vertx.httpproxy.HttpProxy;
 import io.vertx.httpproxy.ProxyContext;
 import io.vertx.httpproxy.ProxyInterceptor;
@@ -36,7 +30,7 @@ public class RemotePlaypenServer {
     public static final String APPLICATION_QUARKUS = "application/quarkus-live-reload";
 
     class RemotePlaypenSession implements ProxyInterceptor {
-        //HttpClient client;
+        HttpClient client;
         HttpProxy sessionProxy;
         final String who;
         final String liveReloadPrefix;
@@ -52,10 +46,10 @@ public class RemotePlaypenServer {
             this.port = port;
             this.who = who;
             this.liveReloadPrefix = clientPathPrefix + "/" + who;
-            //client = vertx.createHttpClient();
-            //sessionProxy = HttpProxy.reverseProxy(client);
-            //sessionProxy.addInterceptor(this);
-            //proxy.origin(this.port, this.host);
+            client = vertx.createHttpClient();
+            sessionProxy = HttpProxy.reverseProxy(client);
+            sessionProxy.addInterceptor(this);
+            sessionProxy.origin(this.port, this.host);
             log.debugv("RemoteSession for {0}:{1}", host, port);
         }
 
@@ -76,8 +70,7 @@ public class RemotePlaypenServer {
                 log.error("Trying to send liveCode request through actual service is not allowed");
                 ctx.response().setStatusCode(403).end();
             }
-            proxyContext(ctx, port, host, ctx.request().uri());
-            //sessionProxy.handle(ctx.request());
+            sessionProxy.handle(ctx.request());
         }
 
         public void liveCoding(RoutingContext ctx) {
@@ -86,22 +79,7 @@ public class RemotePlaypenServer {
                 ctx.response().setStatusCode(403).end();
                 return;
             }
-            sendLiveCodingManually(ctx);
-            /*
-             * sessionProxy.handle(ctx.request());
-             * log.debugv("Live coding response code {0} ", ctx.response().getStatusCode());
-             * log.debug("headers:");
-             * for (String key : ctx.response().headers().names()) {
-             * log.debugv("{0}: {1}", key, ctx.response().headers().get(key));
-             * }
-             *
-             */
-        }
-
-        private void sendLiveCodingManually(RoutingContext ctx) {
-            String uri = ctx.request().uri();
-            String tmp = uri.replace(liveReloadPrefix, "");
-            proxyContext(ctx, this.port, this.host, tmp);
+            sessionProxy.handle(ctx.request());
         }
 
         /**
@@ -121,14 +99,14 @@ public class RemotePlaypenServer {
 
         public void shutdown(boolean deleteUserPlaypen) {
             running = false;
-            //client.close();
+            client.close();
         }
     }
 
     protected String serviceName;
     protected RemotePlaypenManager manager;
     protected ProxySessionAuth auth = new NoAuth();
-    protected HttpClient client;
+    protected HttpClient proxyClient;
     protected HttpProxy proxy;
     protected Vertx vertx;
     protected String clientPathPrefix = "";
@@ -189,9 +167,9 @@ public class RemotePlaypenServer {
         if (config.isSsl()) {
             options.setSsl(true).setTrustAll(true);
         }
-        this.client = vertx.createHttpClient(options);
-        //this.proxy = HttpProxy.reverseProxy(client);
-        //proxy.origin(config.getPort(), config.getHost());
+        this.proxyClient = vertx.createHttpClient(options);
+        this.proxy = HttpProxy.reverseProxy(proxyClient);
+        proxy.origin(config.getPort(), config.getHost());
     }
 
     public void liveCode(RoutingContext ctx) {
@@ -231,8 +209,7 @@ public class RemotePlaypenServer {
             log.debug("Found session");
             found.forward(ctx);
         } else {
-            proxyContext(ctx, serviceConfig.getPort(), serviceConfig.getHost(), ctx.request().uri());
-            //proxy.handle(ctx.request());
+            proxy.handle(ctx.request());
         }
     }
 
@@ -389,86 +366,4 @@ public class RemotePlaypenServer {
                 .putHeader("Content-Type", "text/plain")
                 .end("Session cookie: " + sessionId);
     }
-
-    private void proxyContext(RoutingContext ctx, int port, String host, String uri) {
-        log.debugv("proxyContext {0} {1}", host, uri);
-        ctx.request().pause();
-        client.request(ctx.request().method(), port, host, uri)
-                .onSuccess(req -> {
-                    log.debugv("connected {0} {1}", host, uri);
-                    req.response().onSuccess(res -> {
-                        log.debugv("responding {0} {1}", host, uri);
-                        handleProxyResponse(ctx, req, res);
-                    })
-                            .onFailure(event -> {
-                                log.error("live coding response failed");
-                                ctx.response().setStatusCode(500).end();
-                            });
-                    ctx.request().headers().forEach((s, s2) -> req.putHeader(s, s2));
-                    long contentLength = -1L;
-                    String contentLengthHeader = ctx.request().getHeader(HttpHeaders.CONTENT_LENGTH);
-                    if (contentLengthHeader != null) {
-                        try {
-                            contentLength = Long.parseLong(contentLengthHeader);
-                        } catch (NumberFormatException var6) {
-                        }
-                    }
-
-                    Body body = Body.body(ctx.request(), contentLength);
-                    long len = body.length();
-                    if (len >= 0L) {
-                        req.putHeader(HttpHeaders.CONTENT_LENGTH, Long.toString(len));
-                    } else {
-                        req.setChunked(true);
-                    }
-                    Pipe<Buffer> pipe = body.stream().pipe();
-                    pipe.endOnComplete(true);
-                    pipe.endOnFailure(false);
-                    pipe.to(req, (ar) -> {
-                        if (ar.failed()) {
-                            log.error("Failed to pipe live code request");
-                            req.reset();
-                        }
-
-                    });
-                });
-    }
-
-    private void handleProxyResponse(RoutingContext ctx, HttpClientRequest req, HttpClientResponse res) {
-        //log.debug("live coding response: " + res.statusCode());
-        ctx.response().setStatusCode(res.statusCode());
-        //log.debug("headers:");
-        res.headers().forEach((key, val) -> {
-            //log.debugv("{0}: {1}", key, val);
-            ctx.response().headers().add(key, val);
-
-        });
-        long contentLength = -1L;
-        String contentLengthHeader = res.getHeader(HttpHeaders.CONTENT_LENGTH);
-        if (contentLengthHeader != null) {
-            try {
-                contentLength = Long.parseLong(contentLengthHeader);
-            } catch (NumberFormatException var14) {
-            }
-        }
-        Body body = Body.body(res, contentLength);
-        long len = body.length();
-        if (len >= 0L) {
-            ctx.response().putHeader(HttpHeaders.CONTENT_LENGTH, Long.toString(len));
-        } else {
-            ctx.response().setChunked(true);
-        }
-
-        Pipe<Buffer> pipe = body.stream().pipe();
-        pipe.endOnSuccess(true);
-        pipe.endOnFailure(false);
-        pipe.to(ctx.response(), (ar) -> {
-            if (ar.failed()) {
-                log.error("Failed to send live code response back");
-                req.reset();
-                ctx.response().reset();
-            }
-        });
-    }
-
 }
