@@ -28,6 +28,7 @@ import io.vertx.httpproxy.ProxyResponse;
 public class RemotePlaypenServer {
     protected static final Logger log = Logger.getLogger(RemotePlaypenServer.class);
     public static final String APPLICATION_QUARKUS = "application/quarkus-live-reload";
+    public static final String REMOTE_API_PATH = "/remote";
 
     class RemotePlaypenSession implements ProxyInterceptor {
         HttpClient client;
@@ -45,7 +46,7 @@ public class RemotePlaypenServer {
                 port = 80;
             this.port = port;
             this.who = who;
-            this.liveReloadPrefix = clientPathPrefix + "/" + who;
+            this.liveReloadPrefix = clientPathPrefix + "/remote/" + who;
             client = vertx.createHttpClient();
             sessionProxy = HttpProxy.reverseProxy(client);
             sessionProxy.addInterceptor(this);
@@ -142,13 +143,11 @@ public class RemotePlaypenServer {
             }
             context.next();
         });
-        clientApiPath = clientPathPrefix + "/:who" + CLIENT_API_PATH;
+        clientApiPath = clientPathPrefix + REMOTE_API_PATH + "/:who/_playpen_api";
         // CLIENT API
-        clientApiRouter.route(clientApiPath + "/version").method(HttpMethod.GET)
-                .handler((ctx) -> ctx.response().setStatusCode(200).putHeader("Content-Type", "text/plain").end(version));
         clientApiRouter.route(clientApiPath + "/connect").method(HttpMethod.POST).handler(this::clientConnect);
         clientApiRouter.route(clientApiPath + "/connect").method(HttpMethod.DELETE).handler(this::deleteClientConnection);
-        clientApiRouter.route(clientPathPrefix + "/:who/*").handler(this::liveCode);
+        clientApiRouter.route(clientPathPrefix + REMOTE_API_PATH + "/:who" + "/*").handler(this::liveCode);
 
         // API routes
         proxyRouter.route(API_PATH + "/version").method(HttpMethod.GET)

@@ -5,7 +5,6 @@ import java.net.URL;
 
 import org.jboss.logging.Logger;
 
-import io.quarkiverse.playpen.server.PlaypenServer;
 import io.quarkiverse.playpen.server.auth.ProxySessionAuth;
 
 public class RemotePlaypen {
@@ -13,7 +12,7 @@ public class RemotePlaypen {
 
     public static boolean connect(String url, String secret, String configString) throws Exception {
         url = url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
-        url += PlaypenServer.CLIENT_API_PATH + "/connect?" + configString;
+        url += "/_playpen_api/connect?" + configString;
 
         log.info("Sending connect " + url);
         URL httpUrl = new URL(url);
@@ -40,7 +39,7 @@ public class RemotePlaypen {
 
     public static boolean disconnect(String url, String secret) throws Exception {
         url = url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
-        url += PlaypenServer.CLIENT_API_PATH + "/connect";
+        url += "/_playpen_api/connect";
 
         log.info("Sending disconnect " + url);
         URL httpUrl = new URL(url);
