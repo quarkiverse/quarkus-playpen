@@ -21,7 +21,6 @@ import io.vertx.core.http.HttpMethod;
 public abstract class AbstractPlaypenClient {
     protected static final Logger log = Logger.getLogger(PlaypenClient.class);
     protected HttpClient proxyClient;
-    protected String sessionId;
     protected int numPollers = 1;
     protected volatile boolean running = true;
     protected String pollLink;
@@ -34,7 +33,7 @@ public abstract class AbstractPlaypenClient {
     protected String tokenHeader = null;
     protected String authHeader;
     protected String credentials;
-    protected String clientApiPath = PlaypenServer.CLIENT_API_PATH;
+    protected String clientApiPath = "";
 
     public void setPollTimeoutMillis(long pollTimeoutMillis) {
         pollTimeoutOverriden = true;
@@ -67,24 +66,44 @@ public abstract class AbstractPlaypenClient {
         this.authHeader = "Secret " + secret;
     }
 
+    static String params(String curr, String add) {
+        if (curr == null) {
+            return "?" + add;
+        } else {
+            return curr + "&" + add;
+        }
+    }
+
     public void initUri(PlaypenConnectionConfig config) {
-        this.sessionId = config.session == null ? PlaypenServer.GLOBAL_PROXY_SESSION : config.session;
-        log.debug("Start playpen session: " + sessionId);
-        if (config.prefix != null)
-            clientApiPath = config.prefix + PlaypenServer.CLIENT_API_PATH;
-        this.uri = clientApiPath + "/connect?who=" + config.who + "&session=" + sessionId;
+        log.debug("Start playpen ");
+        clientApiPath = config.prefix;
+        if (config.prefix == null) {
+            clientApiPath = "";
+        }
+        this.uri = clientApiPath + "/connect";
+        String queryParams = null;
         if (config.queries != null) {
-            for (String query : config.queries)
-                this.uri = this.uri + "&query=" + query;
+            for (String query : config.queries) {
+                queryParams = params(queryParams, "query=" + query);
+            }
         }
         if (config.headers != null) {
-            for (String header : config.headers)
-                this.uri = this.uri + "&header=" + header;
+            for (String header : config.headers) {
+                queryParams = params(queryParams, "header=" + header);
+            }
         }
         if (config.paths != null) {
-            for (String path : config.paths)
-                this.uri = this.uri + "&path=" + path;
+            for (String path : config.paths) {
+                queryParams = params(queryParams, "path=" + path);
+            }
         }
+        if (config.isGlobal) {
+            queryParams = params(queryParams, "global=true");
+        }
+        if (queryParams != null) {
+            this.uri = this.uri + queryParams;
+        }
+        log.info("client connect uri: " + this.uri);
     }
 
     public boolean start() {
@@ -342,7 +361,7 @@ public abstract class AbstractPlaypenClient {
             // delete session
             CountDownLatch latch = new CountDownLatch(1);
             if (connected) {
-                String uri = clientApiPath + "/connect?session=" + sessionId;
+                String uri = clientApiPath + "/connect";
                 proxyClient.request(HttpMethod.DELETE, uri)
                         .onFailure(event -> {
                             log.error("Failed to delete sesssion on shutdown", event);

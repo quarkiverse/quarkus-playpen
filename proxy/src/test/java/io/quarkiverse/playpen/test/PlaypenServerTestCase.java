@@ -39,9 +39,8 @@ public class PlaypenServerTestCase {
                     "service.host", "localhost",
                     "service.name", "my-service",
                     "service.port", "9091",
-                    "client.api.port", "8082"
-            //,"quarkus.log.level", "DEBUG"
-            );
+                    "client.api.port", "8082",
+                    "quarkus.log.category.\"io.quarkiverse.playpen\".level", "DEBUG");
         }
     }
 
@@ -137,7 +136,7 @@ public class PlaypenServerTestCase {
     @Test
     public void testGlobalSession() throws Exception {
         PlaypenClient client = PlaypenClient.create(vertx)
-                .playpen("http://localhost:8082?who=bill")
+                .playpen("http://localhost:8082/local/bill?global=true")
                 .service("localhost", 9092, false)
                 .build();
         Assertions.assertTrue(client.start());

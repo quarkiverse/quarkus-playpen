@@ -32,7 +32,7 @@ public class PlaypenServerTest {
     public static final int PROXY_PORT = 9092;
 
     private static final String APP_PROPS = "" +
-            "quarkus.playpen.uri=http://localhost:9092?who=bill\n"
+            "quarkus.playpen.uri=http://localhost:9092/local/bill?global=true\n"
             + "quarkus.playpen.manual-start=true\n";
 
     @RegisterExtension

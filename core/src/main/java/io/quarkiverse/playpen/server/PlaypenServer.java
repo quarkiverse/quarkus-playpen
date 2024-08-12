@@ -99,7 +99,7 @@ public class PlaypenServer {
         }
 
         public void forwardRequestToPollerClient(RoutingContext proxiedCtx) {
-            log.debugv("Forward request to poller client {0}", session.sessionId);
+            log.debugv("Forward request to poller client {0}", session.who);
             enqueued = false;
             HttpServerRequest proxiedRequest = proxiedCtx.request();
             HttpServerResponse pollResponse = pollerCtx.response();
@@ -113,8 +113,7 @@ public class PlaypenServer {
             });
             String requestId = session.queueResponse(proxiedCtx);
             pollResponse.putHeader(REQUEST_ID_HEADER, requestId);
-            String responsePath = clientApiPath + "/push/response/session/" + session.sessionId + "/request/"
-                    + requestId;
+            String responsePath = clientApiPath + "/" + session.who + "/push/" + requestId;
             pollResponse.putHeader(RESPONSE_LINK, responsePath);
             pollResponse.putHeader(METHOD_HEADER, proxiedRequest.method().toString());
             pollResponse.putHeader(URI_HEADER, proxiedRequest.uri());
@@ -126,7 +125,6 @@ public class PlaypenServer {
         final ConcurrentHashMap<String, RoutingContext> responsePending = new ConcurrentHashMap<>();
         final ServiceProxy proxy;
         final long timerId;
-        final String sessionId;
         final String who;
         final String token = UUID.randomUUID().toString();
         final Deque<RoutingContext> awaiting = new LinkedList<>();
@@ -140,10 +138,9 @@ public class PlaypenServer {
         volatile long lastPoll;
         AtomicLong requestId = new AtomicLong(System.currentTimeMillis());
 
-        ProxySession(ServiceProxy proxy, String sessionId, String who) {
+        ProxySession(ServiceProxy proxy, String who) {
             timerId = vertx.setPeriodic(timerPeriod, this::timerCallback);
             this.proxy = proxy;
-            this.sessionId = sessionId;
             this.who = who;
         }
 
@@ -172,7 +169,7 @@ public class PlaypenServer {
             if (!running)
                 return;
             if (System.currentTimeMillis() - lastPoll > idleTimeout) {
-                log.warnv("Shutting down session {0} due to idle timeout.", sessionId);
+                log.warnv("Shutting down session {0} due to idle timeout.", who);
                 shutdown();
             }
         }
@@ -217,7 +214,6 @@ public class PlaypenServer {
             if (!running)
                 return;
             running = false;
-            proxy.sessions.remove(this.sessionId);
             vertx.cancelTimer(timerId);
 
             synchronized (pollLock) {
@@ -301,16 +297,23 @@ public class PlaypenServer {
         final ServiceConfig config;
         final HttpProxy proxy;
         final Map<String, ProxySession> sessions = new ConcurrentHashMap<>();
+        volatile ProxySession globalSession;
 
         void shutdown() {
             for (ProxySession session : sessions.values()) {
                 session.shutdown();
+            }
+            ProxySession tmp = globalSession;
+            if (tmp != null) {
+                globalSession = null;
+                tmp.shutdown();
             }
         }
     }
 
     public static final String API_PATH = "/_playpen/api";
     public static final String CLIENT_API_PATH = "/_playpen/client";
+    public static final String LOCAL_API_PATH = "/local";
     public static final String GLOBAL_PROXY_SESSION = "_playpen_global";
     public static final String SESSION_HEADER = "X-Playpen-Session";
     public static final String HEADER_FORWARD_PREFIX = "X-Playpen-Fwd-";
@@ -330,7 +333,7 @@ public class PlaypenServer {
     protected Vertx vertx;
     protected ProxySessionAuth auth = new NoAuth();
     protected String clientPathPrefix;
-    protected String clientApiPath = CLIENT_API_PATH;
+    protected String clientApiPath = LOCAL_API_PATH;
     protected String version = "unknown";
 
     public void setVersion(String version) {
@@ -370,18 +373,18 @@ public class PlaypenServer {
             context.next();
         });
         if (clientPathPrefix != null) {
-            clientApiPath = clientPathPrefix + CLIENT_API_PATH;
+            clientApiPath = clientPathPrefix + LOCAL_API_PATH;
         }
         // CLIENT API
         clientApiRouter.route(clientApiPath + "/version").method(HttpMethod.GET)
                 .handler((ctx) -> ctx.response().setStatusCode(200).putHeader("Content-Type", "text/plain").end(version));
-        clientApiRouter.route(clientApiPath + "/poll/session/:session").method(HttpMethod.POST).handler(this::pollNext);
-        clientApiRouter.route(clientApiPath + "/connect").method(HttpMethod.POST).handler(this::clientConnect);
-        clientApiRouter.route(clientApiPath + "/connect").method(HttpMethod.DELETE).handler(this::deleteClientConnection);
-        clientApiRouter.route(clientApiPath + "/push/response/session/:session/request/:request")
+        clientApiRouter.route(clientApiPath + "/:who/poll").method(HttpMethod.POST).handler(this::pollNext);
+        clientApiRouter.route(clientApiPath + "/:who/connect").method(HttpMethod.POST).handler(this::clientConnect);
+        clientApiRouter.route(clientApiPath + "/:who/connect").method(HttpMethod.DELETE).handler(this::deleteClientConnection);
+        clientApiRouter.route(clientApiPath + "/:who/push/:request")
                 .method(HttpMethod.POST)
                 .handler(this::pushResponse);
-        clientApiRouter.route(clientApiPath + "/push/response/session/:session/request/:request")
+        clientApiRouter.route(clientApiPath + "/:who/push/:request")
                 .method(HttpMethod.DELETE)
                 .handler(this::deletePushResponse);
         clientApiRouter.route(clientApiPath + "/*").handler(routingContext -> routingContext.fail(404));
@@ -503,7 +506,12 @@ public class PlaypenServer {
             }
         }
         if (found == null) {
-            found = service.sessions.get(GLOBAL_PROXY_SESSION);
+            found = service.globalSession;
+            if (found != null) {
+                log.debug("forward to global session");
+            }
+        } else {
+            log.debugv("forward to session {0}", found.who);
         }
 
         if (found != null && found.running) {
@@ -515,35 +523,15 @@ public class PlaypenServer {
 
     public void clientConnect(RoutingContext ctx) {
         // TODO: add security 401 protocol
-
-        log.debug("Connect: " + ctx.request().absoluteURI());
-        List<String> sessionQueryParam = ctx.queryParam("session");
-        String sessionId = null;
-        if (!sessionQueryParam.isEmpty()) {
-            sessionId = sessionQueryParam.get(0);
-        }
-        List<String> whoQueryParam = ctx.queryParam("who");
-        String who = null;
-        if (!whoQueryParam.isEmpty()) {
-            who = whoQueryParam.get(0);
-        }
-        if (who == null) {
-            ctx.response().setStatusCode(400).end();
-            log.errorv("Failed Client Connect to service {0} and session {1}: who identity not sent", service.config.getName(),
-                    sessionId);
-            return;
-        }
+        String who = ctx.pathParam("who");
+        boolean isGlobal = false;
         List<RequestSessionMatcher> matchers = new ArrayList<>();
         for (Map.Entry<String, String> entry : ctx.queryParams()) {
             String key = entry.getKey();
             String value = entry.getValue();
             if ("query".equals(key)) {
-                if (sessionId == null) {
-                    ctx.response().setStatusCode(400).putHeader("Content-Type", "text/plain").end("Must declare session");
-                    return;
-                }
                 String query = value;
-                String qvalue = sessionId;
+                String qvalue = who;
                 int idx = value.indexOf('=');
                 if (idx > 0) {
                     query = value.substring(0, idx);
@@ -551,20 +539,12 @@ public class PlaypenServer {
                 }
                 matchers.add(new QueryParamSessionMatcher(query, qvalue));
             } else if ("path".equals(key)) {
-                if (sessionId == null) {
-                    ctx.response().setStatusCode(400).putHeader("Content-Type", "text/plain").end("Must declare session");
-                    return;
-                }
                 log.debug("********** Adding PathParam " + value);
                 matchers.add(new PathParamSessionMatcher(value));
             } else if ("header".equals(key)) {
-                if (sessionId == null) {
-                    ctx.response().setStatusCode(400).putHeader("Content-Type", "text/plain").end("Must declare session");
-                    return;
-                }
                 String header = value;
                 int idx = value.indexOf('=');
-                String hvalue = sessionId;
+                String hvalue = who;
                 if (idx > 0) {
                     header = value.substring(0, idx);
                     hvalue = value.substring(idx + 1);
@@ -575,46 +555,36 @@ public class PlaypenServer {
                 if (ip == null) {
                     ip = ctx.request().remoteAddress().hostAddress();
                 }
-                if (sessionId == null) {
-                    sessionId = ip;
-                }
+                matchers.add(new ClientIpMatcher(ip));
+            } else if ("global".equals(key) && "true".equals(value)) {
+                isGlobal = true;
             }
         }
-        if (sessionId == null) {
-            sessionId = GLOBAL_PROXY_SESSION;
-        } else {
-            matchers.add(new HeaderOrCookieSessionMatcher(SESSION_HEADER, sessionId));
-        }
         synchronized (this) {
-            ProxySession session = service.sessions.get(sessionId);
+            ProxySession session = service.sessions.get(who);
             if (session != null) {
-                if (!who.equals(session.who)) {
-                    log.errorv("Failed Client Connect for {0} to service {1} and session {2}: Existing connection {3}", who,
-                            service.config.getName(), sessionId, session.who);
-                    ctx.response().setStatusCode(409).putHeader("Content-Type", "text/plain").end(session.who);
-                    return;
-                }
                 if (auth.authorized(ctx, session)) {
                     ctx.response().setStatusCode(204)
                             .putHeader(POLL_TIMEOUT, Long.toString(session.pollTimeout))
-                            .putHeader(POLL_LINK, clientApiPath + "/poll/session/" + sessionId)
+                            .putHeader(POLL_LINK, getPollLink(who))
                             .end();
                 }
             } else {
-                String finalSessionId = sessionId;
-                String finalWho = who;
+                boolean finalIsGlobal = isGlobal;
                 auth.authenticate(ctx, () -> {
-                    ProxySession newSession = new ProxySession(service, finalSessionId, finalWho);
-                    if (matchers.isEmpty()) {
-                        matchers.add(new HeaderOrCookieSessionMatcher(SESSION_HEADER, finalSessionId));
+                    ProxySession newSession = new ProxySession(service, who);
+                    if (finalIsGlobal) {
+                        service.globalSession = newSession;
+                    } else {
+                        matchers.add(new HeaderOrCookieSessionMatcher(SESSION_HEADER, who));
+                        newSession.matchers = matchers;
+                        service.sessions.put(who, newSession);
                     }
-                    newSession.matchers = matchers;
-                    service.sessions.put(finalSessionId, newSession);
 
                     auth.propagateToken(ctx, newSession);
                     ctx.response().setStatusCode(204)
                             .putHeader(POLL_TIMEOUT, Long.toString(newSession.pollTimeout))
-                            .putHeader(POLL_LINK, clientApiPath + "/poll/session/" + finalSessionId)
+                            .putHeader(POLL_LINK, getPollLink(who))
                             .end();
                 });
 
@@ -623,17 +593,13 @@ public class PlaypenServer {
     }
 
     public void deleteClientConnection(RoutingContext ctx) {
-        // TODO: add security 401 protocol
-        List<String> sessionQueryParam = ctx.queryParam("session");
-        String sessionId = GLOBAL_PROXY_SESSION;
-        if (!sessionQueryParam.isEmpty()) {
-            sessionId = sessionQueryParam.get(0);
-        }
-        ProxySession session = service.sessions.get(sessionId);
+        String who = ctx.pathParam("who");
+        ProxySession session = getProxySession(who);
         if (session != null) {
             if (!auth.authorized(ctx, session))
                 return;
-            log.debugv("Shutdown session {0}", sessionId);
+            service.sessions.remove(who);
+            log.debugv("Shutdown session {0}", who);
             session.shutdown();
             ctx.response().setStatusCode(204).end();
         } else {
@@ -641,13 +607,21 @@ public class PlaypenServer {
         }
     }
 
+    private ProxySession getProxySession(String who) {
+        ProxySession session = service.sessions.get(who);
+        if (session == null && service.globalSession != null && service.globalSession.who.equals(who)) {
+            session = service.globalSession;
+        }
+        return session;
+    }
+
     public void pushResponse(RoutingContext ctx) {
-        String sessionId = ctx.pathParam("session");
+        String who = ctx.pathParam("who");
         String requestId = ctx.pathParam("request");
         String kp = ctx.queryParams().get("keepAlive");
         boolean keepAlive = kp == null ? true : Boolean.parseBoolean(kp);
 
-        ProxySession session = service.sessions.get(sessionId);
+        ProxySession session = getProxySession(who);
         if (session == null) {
             log.error("Push response could not find service " + service.config.getName() + " session ");
             PlaypenServer.error(ctx, 404, "Session not found for service " + service.config.getName());
@@ -658,8 +632,8 @@ public class PlaypenServer {
         RoutingContext proxiedCtx = session.dequeueResponse(requestId);
         if (proxiedCtx == null) {
             log.error("Push response could not request " + requestId + " for service " + service.config.getName() + " session "
-                    + sessionId);
-            ctx.response().putHeader(POLL_LINK, clientApiPath + "/poll/session/" + sessionId);
+                    + who);
+            ctx.response().putHeader(POLL_LINK, getPollLink(who));
             PlaypenServer.error(ctx, 404, "Request " + requestId + " not found");
             return;
         }
@@ -682,21 +656,25 @@ public class PlaypenServer {
         });
         sendBody(pushedResponse, proxiedResponse);
         if (keepAlive) {
-            log.debugv("Keep alive {0} {1}", service.config.getName(), sessionId);
+            log.debugv("Keep alive {0} {1}", service.config.getName(), who);
             session.pollProcessing();
             session.poll(ctx);
         } else {
-            log.debugv("End polling {0} {1}", service.config.getName(), sessionId);
+            log.debugv("End polling {0} {1}", service.config.getName(), who);
             session.pollEnded();
             ctx.response().setStatusCode(204).end();
         }
     }
 
+    private String getPollLink(String who) {
+        return clientApiPath + "/" + who + "/poll";
+    }
+
     public void deletePushResponse(RoutingContext ctx) {
-        String sessionId = ctx.pathParam("session");
+        String who = ctx.pathParam("who");
         String requestId = ctx.pathParam("request");
 
-        ProxySession session = service.sessions.get(sessionId);
+        ProxySession session = getProxySession(who);
         if (session == null) {
             log.error("Delete push response could not find service " + service.config.getName() + " session ");
             PlaypenServer.error(ctx, 404, "Session not found for service " + service.config.getName());
@@ -707,7 +685,7 @@ public class PlaypenServer {
         RoutingContext proxiedCtx = session.dequeueResponse(requestId);
         if (proxiedCtx == null) {
             log.error("Delete push response could not find request " + requestId + " for service " + service.config.getName()
-                    + " session " + sessionId);
+                    + " session " + who);
             PlaypenServer.error(ctx, 404, "Request " + requestId + " not found");
             return;
         }
@@ -716,17 +694,17 @@ public class PlaypenServer {
     }
 
     public void pollNext(RoutingContext ctx) {
-        String sessionId = ctx.pathParam("session");
+        String who = ctx.pathParam("who");
 
-        ProxySession session = service.sessions.get(sessionId);
+        ProxySession session = getProxySession(who);
         if (session == null) {
-            log.error("Poll next could not find service " + service.config.getName() + " session " + sessionId);
+            log.error("Poll next could not find service " + service.config.getName() + " session " + who);
             PlaypenServer.error(ctx, 404, "Session not found for service " + service.config.getName());
             return;
         }
         if (!auth.authorized(ctx, session))
             return;
-        log.debugv("pollNext {0} {1}", service.config.getName(), sessionId);
+        log.debugv("pollNext {0} {1}", service.config.getName(), who);
         session.poll(ctx);
     }
 }

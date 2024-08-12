@@ -114,7 +114,7 @@ public class OpenshiftBasicAuthTestCase {
     @Test
     public void testBadPassword() {
         PlaypenClient client = PlaypenClient.create(vertx)
-                .playpen("http://localhost:8082?who=bill")
+                .playpen("http://localhost:8082/local/bill?global=true")
                 .service("localhost", 9092, false)
                 .basicAuth("bill", "badpassword")
                 .build();
@@ -124,7 +124,7 @@ public class OpenshiftBasicAuthTestCase {
     @Test
     public void testBadUser() {
         PlaypenClient client = PlaypenClient.create(vertx)
-                .playpen("http://localhost:8082?who=bill")
+                .playpen("http://localhost:8082/local/bill?global=true")
                 .service("localhost", 9092, false)
                 .basicAuth("john", "geheim")
                 .build();
@@ -134,7 +134,7 @@ public class OpenshiftBasicAuthTestCase {
     @Test
     public void testGlobalSession() throws Exception {
         PlaypenClient client = PlaypenClient.create(vertx)
-                .playpen("http://localhost:8082?who=bill")
+                .playpen("http://localhost:8082/local/bill?global=true")
                 .service("localhost", 9092, false)
                 .credentials("bill:geheim")
                 .build();
