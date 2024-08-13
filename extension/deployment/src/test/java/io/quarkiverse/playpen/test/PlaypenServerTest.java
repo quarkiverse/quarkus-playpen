@@ -14,10 +14,10 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import io.quarkiverse.playpen.PlaypenRecorder;
-import io.quarkiverse.playpen.ProxyUtils;
-import io.quarkiverse.playpen.server.PlaypenServer;
-import io.quarkiverse.playpen.server.ServiceConfig;
+import io.quarkiverse.playpen.LocalPlaypenRecorder;
+import io.quarkiverse.playpen.server.PlaypenProxy;
+import io.quarkiverse.playpen.server.PlaypenProxyConfig;
+import io.quarkiverse.playpen.utils.ProxyUtils;
 import io.quarkus.test.QuarkusUnitTest;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
@@ -30,9 +30,10 @@ public class PlaypenServerTest {
 
     public static final int SERVICE_PORT = 9091;
     public static final int PROXY_PORT = 9092;
+    public static final int CLIENT_API_PORT = 9093;
 
     private static final String APP_PROPS = "" +
-            "quarkus.playpen.uri=http://localhost:9092/local/bill?global=true\n"
+            "quarkus.playpen.uri=http://localhost:9093/local/bill?global=true\n"
             + "quarkus.playpen.manual-start=true\n";
 
     @RegisterExtension
@@ -41,8 +42,7 @@ public class PlaypenServerTest {
                     .addAsResource(new StringAsset(APP_PROPS), "application.properties")
                     .addClasses(RouteProducer.class));
 
-    public static PlaypenServer proxyServer;
-    public static HttpServer proxy;
+    public static AutoCloseable proxy;
 
     static HttpServer myService;
 
@@ -74,21 +74,20 @@ public class PlaypenServerTest {
             request.response().setStatusCode(200).putHeader("Content-Type", "text/plain").end("my-service");
         }).listen(SERVICE_PORT));
 
-        proxy = vertx.createHttpServer();
-        proxyServer = new PlaypenServer();
-        Router proxyRouter = Router.router(vertx);
-        ServiceConfig config = new ServiceConfig("my-service", "localhost", SERVICE_PORT);
-        proxyServer.init(vertx, proxyRouter, proxyRouter, config);
-        ProxyUtils.await(1000, proxy.requestHandler(proxyRouter).listen(PROXY_PORT));
+        PlaypenProxyConfig config = new PlaypenProxyConfig();
+        config.service = "my-service";
+        config.serviceHost = "localhost";
+        config.servicePort = SERVICE_PORT;
+        proxy = PlaypenProxy.create(vertx, config, PROXY_PORT, CLIENT_API_PORT);
     }
 
     @AfterAll
-    public static void after() {
+    public static void after() throws Exception {
         System.out.println(" -------    CLEANUP TEST ------");
         if (vertx != null) {
             ProxyUtils.await(1000, myService.close());
             System.out.println(" -------    Cleaned up my-service ------");
-            ProxyUtils.await(1000, proxy.close());
+            proxy.close();
             System.out.println(" -------    Cleaned up proxy ------");
             ProxyUtils.await(1000, vertx.close());
             System.out.println(" -------    Cleaned up test vertx ------");
@@ -160,7 +159,7 @@ public class PlaypenServerTest {
     public void testGlobalSession() throws Exception {
 
         try {
-            PlaypenRecorder.startSession();
+            LocalPlaypenRecorder.startSession();
             System.out.println("------------------ POST REQUEST BODY ---------------------");
             given()
                     .when()
@@ -191,7 +190,7 @@ public class PlaypenServerTest {
                     .contentType(equalTo("text/plain"))
                     .body(equalTo("local"));
         } finally {
-            PlaypenRecorder.closeSession();
+            LocalPlaypenRecorder.closeSession();
         }
         System.out.println("-------------------- After Shutdown GET REQUEST --------------------");
         given()

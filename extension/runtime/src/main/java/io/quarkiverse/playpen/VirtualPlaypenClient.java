@@ -15,7 +15,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.quarkiverse.playpen.client.AbstractPlaypenClient;
-import io.quarkiverse.playpen.server.PlaypenServer;
+import io.quarkiverse.playpen.server.PlaypenProxyConstants;
 import io.quarkus.netty.runtime.virtual.VirtualClientConnection;
 import io.quarkus.netty.runtime.virtual.VirtualResponseHandler;
 import io.quarkus.vertx.http.runtime.QuarkusHttpHeaders;
@@ -133,7 +133,8 @@ public class VirtualPlaypenClient extends AbstractPlaypenClient {
                             log.debug("NettyResponseHandler connect accepted for pushResponse");
                             setToken(pushRequest);
                             pushRequest.setTimeout(pollTimeoutMillis);
-                            pushRequest.putHeader(PlaypenServer.STATUS_CODE_HEADER, Integer.toString(res.status().code()));
+                            pushRequest.putHeader(PlaypenProxyConstants.STATUS_CODE_HEADER,
+                                    Integer.toString(res.status().code()));
 
                             for (String name : res.headers().names()) {
                                 final List<String> allForName = res.headers().getAll(name);
@@ -147,7 +148,7 @@ public class VirtualPlaypenClient extends AbstractPlaypenClient {
                                             && val.equals("chunked")) {
                                         continue; // ignore transfer encoding, chunked screws up message and response
                                     }
-                                    pushRequest.headers().add(PlaypenServer.HEADER_FORWARD_PREFIX + name, val);
+                                    pushRequest.headers().add(PlaypenProxyConstants.HEADER_FORWARD_PREFIX + name, val);
                                 }
                             }
                             pushRequest.send(this)
@@ -241,9 +242,9 @@ public class VirtualPlaypenClient extends AbstractPlaypenClient {
 
     protected void processPoll(HttpClientResponse pollResponse) {
         log.debug("Unpack poll request");
-        String method = pollResponse.getHeader(PlaypenServer.METHOD_HEADER);
-        String uri = pollResponse.getHeader(PlaypenServer.URI_HEADER);
-        String responsePath = pollResponse.getHeader(PlaypenServer.RESPONSE_LINK);
+        String method = pollResponse.getHeader(PlaypenProxyConstants.METHOD_HEADER);
+        String uri = pollResponse.getHeader(PlaypenProxyConstants.URI_HEADER);
+        String responsePath = pollResponse.getHeader(PlaypenProxyConstants.RESPONSE_LINK);
         NettyResponseHandler handler = new NettyResponseHandler(responsePath, vertx);
         VirtualClientConnection connection = VirtualClientConnection.connect(handler, VertxHttpRecorder.VIRTUAL_HTTP,
                 null);
@@ -258,9 +259,9 @@ public class VirtualPlaypenClient extends AbstractPlaypenClient {
                 quarkusHeaders);
         pollResponse.headers().forEach((key, val) -> {
             log.debugv("Poll response header: {0} : {1}", key, val);
-            int idx = key.indexOf(PlaypenServer.HEADER_FORWARD_PREFIX);
+            int idx = key.indexOf(PlaypenProxyConstants.HEADER_FORWARD_PREFIX);
             if (idx == 0) {
-                String headerName = key.substring(PlaypenServer.HEADER_FORWARD_PREFIX.length());
+                String headerName = key.substring(PlaypenProxyConstants.HEADER_FORWARD_PREFIX.length());
                 nettyRequest.headers().add(headerName, val);
             } else if (key.equalsIgnoreCase("Content-Length")) {
                 nettyRequest.headers().add("Content-Length", val);

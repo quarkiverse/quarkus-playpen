@@ -9,7 +9,7 @@ import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.ext.web.RoutingContext;
 
-public class OpenshiftBasicAuth implements ProxySessionAuth {
+public class OpenshiftBasicAuth implements PlaypenAuth {
     final HttpClient client;
 
     public OpenshiftBasicAuth(Vertx vertx, String oauthUrl) {

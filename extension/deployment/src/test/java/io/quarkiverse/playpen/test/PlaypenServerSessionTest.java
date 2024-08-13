@@ -14,10 +14,11 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import io.quarkiverse.playpen.PlaypenRecorder;
-import io.quarkiverse.playpen.ProxyUtils;
-import io.quarkiverse.playpen.server.PlaypenServer;
-import io.quarkiverse.playpen.server.ServiceConfig;
+import io.quarkiverse.playpen.LocalPlaypenRecorder;
+import io.quarkiverse.playpen.server.PlaypenProxy;
+import io.quarkiverse.playpen.server.PlaypenProxyConfig;
+import io.quarkiverse.playpen.server.PlaypenProxyConstants;
+import io.quarkiverse.playpen.utils.ProxyUtils;
 import io.quarkus.test.QuarkusUnitTest;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
@@ -75,8 +76,11 @@ public class PlaypenServerSessionTest {
             request.response().setStatusCode(200).putHeader("Content-Type", "text/plain").end("my-service");
         }).listen(SERVICE_PORT));
 
-        ServiceConfig config = new ServiceConfig("my-service", "localhost", SERVICE_PORT);
-        proxy = PlaypenServer.create(vertx, config, PROXY_PORT, CLIENT_API_PORT);
+        PlaypenProxyConfig config = new PlaypenProxyConfig();
+        config.service = "my-service";
+        config.serviceHost = "localhost";
+        config.servicePort = SERVICE_PORT;
+        proxy = PlaypenProxy.create(vertx, config, PROXY_PORT, CLIENT_API_PORT);
     }
 
     @AfterAll
@@ -96,7 +100,7 @@ public class PlaypenServerSessionTest {
     public void testSession() throws Exception {
 
         try {
-            PlaypenRecorder.startSession();
+            LocalPlaypenRecorder.startSession();
             System.out.println("-------------------- Query GET REQUEST --------------------");
             given()
                     .when()
@@ -119,7 +123,7 @@ public class PlaypenServerSessionTest {
             given()
                     .when()
                     .port(PROXY_PORT)
-                    .header(PlaypenServer.SESSION_HEADER, "john")
+                    .header(PlaypenProxyConstants.SESSION_HEADER, "john")
                     .get("/stuff")
                     .then()
                     .statusCode(200)
@@ -129,7 +133,7 @@ public class PlaypenServerSessionTest {
             given()
                     .when()
                     .port(PROXY_PORT)
-                    .cookie(PlaypenServer.SESSION_HEADER, "john")
+                    .cookie(PlaypenProxyConstants.SESSION_HEADER, "john")
                     .get("/stuff")
                     .then()
                     .statusCode(200)
@@ -163,14 +167,14 @@ public class PlaypenServerSessionTest {
             given()
                     .when()
                     .port(PROXY_PORT)
-                    .header(PlaypenServer.SESSION_HEADER, "jen")
+                    .header(PlaypenProxyConstants.SESSION_HEADER, "jen")
                     .get("/stuff")
                     .then()
                     .statusCode(200)
                     .contentType(equalTo("text/plain"))
                     .body(equalTo("my-service"));
         } finally {
-            PlaypenRecorder.closeSession();
+            LocalPlaypenRecorder.closeSession();
         }
         System.out.println("-------------------- After Shutdown GET REQUEST --------------------");
         given()

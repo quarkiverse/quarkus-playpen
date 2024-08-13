@@ -11,7 +11,7 @@ import org.jboss.logging.Logger;
 
 import io.quarkiverse.playpen.server.auth.NoAuth;
 import io.quarkiverse.playpen.server.auth.OpenshiftBasicAuth;
-import io.quarkiverse.playpen.server.auth.ProxySessionAuth;
+import io.quarkiverse.playpen.server.auth.PlaypenAuth;
 import io.quarkiverse.playpen.server.auth.SecretAuth;
 import io.quarkus.runtime.Shutdown;
 import io.quarkus.runtime.StartupEvent;
@@ -71,20 +71,25 @@ public class QuarkusPlaypenServer {
     @ConfigProperty(name = "client.path.prefix")
     protected Optional<String> clientPathPrefix;
 
-    protected PlaypenServer proxyServer;
+    protected PlaypenProxy proxyServer;
     private HttpServer clientApi;
 
     public void start(@Observes StartupEvent start, Vertx vertx, Router proxyRouter) {
-        proxyServer = new PlaypenServer();
-        proxyServer.setVersion(version);
-        proxyServer.setIdleTimeout(idleTimeout);
-        log.info("Idle timeout millis: " + idleTimeout);
-        proxyServer.setPollTimeout(pollTimeout);
-        log.info("Poll timeout millis: " + pollTimeout);
-        if (ProxySessionAuth.OPENSHIFT_BASIC_AUTH.equalsIgnoreCase(authType)) {
+
+        proxyServer = new PlaypenProxy();
+        PlaypenProxyConfig config = new PlaypenProxyConfig();
+        config.service = serviceName;
+        config.serviceHost = serviceHost;
+        config.servicePort = servicePort;
+        config.ssl = serviceSsl;
+        config.idleTimeout = idleTimeout;
+        config.defaultPollTimeout = pollTimeout;
+        config.version = version;
+
+        if (PlaypenAuth.OPENSHIFT_BASIC_AUTH.equalsIgnoreCase(authType)) {
             log.info("Openshift Basic Auth: " + oauthUrl);
             proxyServer.setAuth(new OpenshiftBasicAuth(vertx, oauthUrl));
-        } else if (ProxySessionAuth.SECRET_AUTH.equalsIgnoreCase(authType)) {
+        } else if (PlaypenAuth.SECRET_AUTH.equalsIgnoreCase(authType)) {
             log.info("Secret auth");
             proxyServer.setAuth(new SecretAuth(secret));
         } else {
@@ -93,9 +98,8 @@ public class QuarkusPlaypenServer {
         }
         if (clientPathPrefix.isPresent()) {
             log.info("Client Path Prefix: " + clientPathPrefix.get());
-            proxyServer.setClientPathPrefix(clientPathPrefix.get());
+            config.clientPathPrefix = clientPathPrefix.get();
         }
-        ServiceConfig config = new ServiceConfig(serviceName, serviceHost, servicePort, serviceSsl);
         clientApi = vertx.createHttpServer();
         Router clientApiRouter = Router.router(vertx);
         proxyServer.init(vertx, proxyRouter, clientApiRouter, config);

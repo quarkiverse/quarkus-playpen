@@ -4,7 +4,7 @@ import java.util.List;
 
 import org.jboss.logging.Logger;
 
-import io.quarkiverse.playpen.PlaypenRecorder;
+import io.quarkiverse.playpen.LocalPlaypenRecorder;
 import io.quarkiverse.playpen.client.PlaypenConnectionConfig;
 import io.quarkus.builder.BuildException;
 import io.quarkus.deployment.IsNormal;
@@ -27,12 +27,12 @@ public class PlaypenProcessor {
     }
 
     @Record(ExecutionTime.RUNTIME_INIT)
-    @BuildStep(onlyIfNot = IsNormal.class)
+    @BuildStep(onlyIfNot = { IsNormal.class, IsAnyRemoteDev.class })
     public void recordProxy(CoreVertxBuildItem vertx,
             List<ServiceStartBuildItem> orderServicesFirst, // try to order this after service recorders
             ShutdownContextBuildItem shutdown,
             PlaypenConfig config,
-            PlaypenRecorder proxy) {
+            LocalPlaypenRecorder proxy) {
         if (config.uri.isPresent()) {
             PlaypenConnectionConfig playpen = PlaypenConnectionConfig.fromUri(config.uri.get());
             if (playpen.error != null) {
@@ -44,4 +44,5 @@ public class PlaypenProcessor {
             proxy.init(vertx.getVertx(), shutdown, playpen, config.manualStart);
         }
     }
+
 }

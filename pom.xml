@@ -14,13 +14,10 @@
   <modules>
     <module>core</module>
     <module>proxy</module>
-    <module>remote-proxy</module>
     <module>client</module>
     <module>operator</module>
     <module>extension/runtime</module>
     <module>extension/deployment</module>
-    <module>remote-extension/runtime</module>
-    <module>remote-extension/deployment</module>
   </modules>
   <scm>
     <connection>scm:git:git@github.com:quarkiverse/quarkus-playpen.git</connection>
@@ -68,16 +65,6 @@
       <dependency>
         <groupId>io.quarkiverse.playpen</groupId>
         <artifactId>quarkus-playpen-deployment</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.quarkiverse.playpen</groupId>
-        <artifactId>quarkus-remote-playpen</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.quarkiverse.playpen</groupId>
-        <artifactId>quarkus-remote-playpen-deployment</artifactId>
         <version>${project.version}</version>
       </dependency>
      </dependencies>

@@ -2,7 +2,7 @@ package io.quarkiverse.playpen.server.auth;
 
 import io.vertx.ext.web.RoutingContext;
 
-public class SecretAuth implements ProxySessionAuth {
+public class SecretAuth implements PlaypenAuth {
     private final String secret;
 
     public SecretAuth(String secret) {

@@ -15,9 +15,9 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import io.quarkiverse.playpen.ProxyUtils;
 import io.quarkiverse.playpen.client.PlaypenClient;
-import io.quarkiverse.playpen.server.auth.ProxySessionAuth;
+import io.quarkiverse.playpen.server.auth.PlaypenAuth;
+import io.quarkiverse.playpen.utils.ProxyUtils;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.QuarkusTestProfile;
 import io.quarkus.test.junit.TestProfile;
@@ -46,7 +46,7 @@ public class OpenshiftBasicAuthTestCase {
                     "service.host", "localhost",
                     "service.name", "my-service",
                     "service.port", "9091",
-                    "authentication.type", ProxySessionAuth.OPENSHIFT_BASIC_AUTH,
+                    "authentication.type", PlaypenAuth.OPENSHIFT_BASIC_AUTH,
                     "oauth.url", "http://localhost:9093",
                     "client.api.port", "8082"
             //,"quarkus.log.level", "DEBUG"
