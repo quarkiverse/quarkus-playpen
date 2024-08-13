@@ -44,17 +44,7 @@
       </dependency>
       <dependency>
         <groupId>io.quarkiverse.playpen</groupId>
-        <artifactId>playpen-proxy-core</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.quarkiverse.playpen</groupId>
-        <artifactId>quarkus-playpen-proxy</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.quarkiverse.playpen</groupId>
-        <artifactId>quarkus-playpen-proxy-client</artifactId>
+        <artifactId>playpen-core</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>

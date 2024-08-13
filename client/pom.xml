@@ -7,7 +7,7 @@
         <version>999-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
-    <artifactId>quarkus-playpen-client</artifactId>
+    <artifactId>playpen-client</artifactId>
 
     <dependencies>
         <dependency>
@@ -24,7 +24,7 @@
         </dependency>
         <dependency>
             <groupId>io.quarkiverse.playpen</groupId>
-            <artifactId>playpen-proxy-core</artifactId>
+            <artifactId>playpen-core</artifactId>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>

@@ -9,7 +9,7 @@
         <version>999-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
-    <artifactId>playpen-proxy-core</artifactId>
+    <artifactId>playpen-core</artifactId>
     <properties>
     </properties>
     <dependencies>
