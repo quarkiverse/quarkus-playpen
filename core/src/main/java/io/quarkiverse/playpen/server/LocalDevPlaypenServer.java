@@ -1,5 +1,7 @@
 package io.quarkiverse.playpen.server;
 
+import static io.quarkiverse.playpen.server.PlaypenProxyConstants.CONNECT_PATH;
+
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.Iterator;
@@ -297,8 +299,9 @@ public class LocalDevPlaypenServer {
             clientApiPath = config.clientPathPrefix + PlaypenProxyConstants.LOCAL_API_PATH;
         }
         clientApiRouter.route(clientApiPath + "/:who/poll").method(HttpMethod.POST).handler(this::pollNext);
-        clientApiRouter.route(clientApiPath + "/:who/connect").method(HttpMethod.POST).handler(this::clientConnect);
-        clientApiRouter.route(clientApiPath + "/:who/connect").method(HttpMethod.DELETE).handler(this::deleteClientConnection);
+        clientApiRouter.route(clientApiPath + "/:who" + CONNECT_PATH).method(HttpMethod.POST).handler(this::clientConnect);
+        clientApiRouter.route(clientApiPath + "/:who" + CONNECT_PATH).method(HttpMethod.DELETE)
+                .handler(this::deleteClientConnection);
         clientApiRouter.route(clientApiPath + "/:who/push/:request")
                 .method(HttpMethod.POST)
                 .handler(this::pushResponse);

@@ -74,6 +74,10 @@ public class QuarkusPlaypenServer {
     protected PlaypenProxy proxyServer;
     private HttpServer clientApi;
 
+    public PlaypenProxy getProxyServer() {
+        return proxyServer;
+    }
+
     public void start(@Observes StartupEvent start, Vertx vertx, Router proxyRouter) {
 
         proxyServer = new PlaypenProxy();

@@ -30,7 +30,7 @@ public class OpenshiftBasicAuth implements PlaypenAuth {
     public void authenticate(RoutingContext ctx, Runnable success) {
         String authorizationHeader = ctx.request().getHeader(AUTHORIZATION);
         if (authorizationHeader == null || !authorizationHeader.startsWith(BASIC)) {
-            ctx.response().setStatusCode(401).putHeader(WWW_AUTHENTICATE, BASIC).end();
+            challenge(ctx);
             return;
         }
         client.request(HttpMethod.GET, "/oauth/authorize?response_type=token&client_id=openshift-challenging-client", event -> {
@@ -41,12 +41,21 @@ public class OpenshiftBasicAuth implements PlaypenAuth {
             HttpClientRequest request = event.result();
             request.putHeader(AUTHORIZATION, authorizationHeader)
                     .send().onComplete(result -> {
-                        if (result.succeeded() && result.result().statusCode() == 302) {
-                            success.run();
+                        if (result.succeeded()) {
+                            if (result.result().statusCode() == 302) {
+                                success.run();
+                            } else {
+                                challenge(ctx);
+                            }
                         } else {
                             ctx.response().setStatusCode(500).end();
                         }
                     });
         });
+    }
+
+    @Override
+    public void challenge(RoutingContext ctx) {
+        ctx.response().setStatusCode(401).putHeader(WWW_AUTHENTICATE, BASIC).end();
     }
 }

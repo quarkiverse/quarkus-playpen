@@ -1,5 +1,7 @@
 package io.quarkiverse.playpen.server;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -7,22 +9,29 @@ import java.util.Map;
 import org.jboss.logging.Logger;
 
 import io.netty.handler.codec.http.HttpHeaderNames;
+import io.quarkiverse.playpen.MockRemotePlaypenManager;
 import io.quarkiverse.playpen.server.matchers.HeaderOrCookieMatcher;
 import io.quarkiverse.playpen.server.matchers.PathParamMatcher;
 import io.quarkiverse.playpen.server.matchers.PlaypenMatcher;
 import io.quarkiverse.playpen.server.matchers.QueryParamMatcher;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.file.OpenOptions;
 import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpMethod;
+import io.vertx.core.streams.Pipe;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.httpproxy.Body;
 import io.vertx.httpproxy.HttpProxy;
 import io.vertx.httpproxy.ProxyContext;
 import io.vertx.httpproxy.ProxyInterceptor;
 import io.vertx.httpproxy.ProxyResponse;
 
 public class RemoteDevPlaypenServer {
+
     class RemoteDevPlaypen implements ProxyInterceptor, Playpen {
         HttpClient client;
         HttpProxy sessionProxy;
@@ -116,6 +125,11 @@ public class RemoteDevPlaypenServer {
     PlaypenProxyConfig config;
     Vertx vertx;
     String clientApiPath = PlaypenProxyConstants.REMOTE_API_PATH;
+    RemotePlaypenManager manager = new MockRemotePlaypenManager();
+
+    public void setManager(RemotePlaypenManager manager) {
+        this.manager = manager;
+    }
 
     public void init(PlaypenProxy master, Router clientApiRouter) {
         this.master = master;
@@ -125,10 +139,128 @@ public class RemoteDevPlaypenServer {
         clientApiPath = master.config.clientPathPrefix + PlaypenProxyConstants.REMOTE_API_PATH + "/:who/_playpen_api";
 
         // CLIENT API
-        clientApiRouter.route(clientApiPath + "/connect").method(HttpMethod.POST).handler(this::clientConnect);
-        clientApiRouter.route(clientApiPath + "/connect").method(HttpMethod.DELETE).handler(this::deleteClientConnection);
+        clientApiRouter.route(clientApiPath + PlaypenProxyConstants.DEPLOYMENT_PATH).method(HttpMethod.POST)
+                .handler(this::createDeployment);
+        clientApiRouter.route(clientApiPath + PlaypenProxyConstants.DEPLOYMENT_PATH).method(HttpMethod.GET)
+                .handler(this::deployment);
+        clientApiRouter.route(clientApiPath + PlaypenProxyConstants.DEPLOYMENT_PATH).method(HttpMethod.DELETE)
+                .handler(this::deleteDeployment);
+        clientApiRouter.route(clientApiPath + PlaypenProxyConstants.DEPLOYMENT_ZIP_PATH).method(HttpMethod.GET)
+                .handler(this::deploymentFiles);
+        clientApiRouter.route(clientApiPath + PlaypenProxyConstants.CONNECT_PATH).method(HttpMethod.POST)
+                .handler(this::clientConnect);
+        clientApiRouter.route(clientApiPath + PlaypenProxyConstants.CONNECT_PATH).method(HttpMethod.DELETE)
+                .handler(this::deleteClientConnection);
+        clientApiRouter.route(clientApiPath + "/*").handler(routingContext -> routingContext.fail(404));
         clientApiRouter.route(master.config.clientPathPrefix + PlaypenProxyConstants.REMOTE_API_PATH + "/:who" + "/*")
                 .handler(this::liveCode);
+    }
+
+    public void deployment(RoutingContext ctx) {
+        ctx.response().setStatusCode(500).end();
+    }
+
+    public void deleteDeployment(RoutingContext ctx) {
+        String who = ctx.pathParam("who");
+        Path path = Paths.get(master.config.basePlaypenDirectory).resolve(who);
+        Path zip = path.resolve("project.zip");
+        vertx.fileSystem().delete(zip.toString());
+
+    }
+
+    public void deploymentFiles(RoutingContext ctx) {
+        String who = ctx.pathParam("who");
+        log.debugv("deploymentFiles {0}", who);
+        Path path = Paths.get(master.config.basePlaypenDirectory).resolve(who);
+        Path zip = path.resolve("project.zip");
+        vertx.fileSystem().exists(zip.toString())
+                .onFailure(event -> ctx.response().setStatusCode(500).end())
+                .onSuccess(exists -> {
+                    if (!exists.booleanValue()) {
+                        ctx.response().setStatusCode(404).end();
+                        return;
+                    }
+                    vertx.fileSystem().open(zip.toString(), new OpenOptions().setWrite(false).setRead(true))
+                            .onFailure(event1 -> {
+                                log.error("Could not open zip");
+                                ctx.response().setStatusCode(500).end();
+
+                            })
+                            .onSuccess(async -> {
+                                async.pause();
+                                ctx.response().setStatusCode(200);
+                                ctx.response().setChunked(true);
+
+                                Body body = Body.body(async, -1);
+                                Pipe<Buffer> pipe = body.stream().pipe();
+                                pipe.endOnComplete(true);
+                                pipe.endOnFailure(false);
+                                pipe.to(ctx.response(), (ar) -> {
+                                    if (ar.failed()) {
+                                        log.error("Failed to pipe file upload");
+                                        ctx.response().setStatusCode(500).end();
+                                    }
+                                });
+                            });
+
+                });
+
+    }
+
+    public void createDeployment(RoutingContext ctx) {
+        String who = ctx.pathParam("who");
+        log.debugv("createDeployment {0}", who);
+        /*
+         * TODO
+         * if (manager.exists(who)) {
+         * ctx.response().setStatusCode(204).end();
+         * return;
+         * }
+         *
+         */
+        ctx.request().pause();
+        Path path = Paths.get(master.config.basePlaypenDirectory).resolve(who);
+        Path zip = path.resolve("project.zip");
+        vertx.fileSystem().mkdirs(path.toString())
+                .onFailure(event -> {
+                    log.error("Could not create deployment directories");
+                    ctx.response().setStatusCode(500).end();
+                })
+                .onSuccess(event -> {
+                    log.debug("Made directories");
+                    vertx.fileSystem().open(zip.toString(), new OpenOptions().setTruncateExisting(true).setWrite(true))
+                            .onFailure(event1 -> {
+                                log.error("Could not open zip");
+                                ctx.response().setStatusCode(500).end();
+
+                            })
+                            .onSuccess(async -> {
+                                log.debug("Opened async file to write");
+                                long contentLength = -1L;
+                                String contentLengthHeader = ctx.request().getHeader(HttpHeaders.CONTENT_LENGTH);
+                                if (contentLengthHeader != null) {
+                                    try {
+                                        contentLength = Long.parseLong(contentLengthHeader);
+                                    } catch (NumberFormatException var6) {
+                                    }
+                                }
+
+                                Body body = Body.body(ctx.request(), contentLength);
+                                Pipe<Buffer> pipe = body.stream().pipe();
+                                pipe.endOnComplete(true);
+                                pipe.endOnFailure(false);
+                                pipe.to(async, (ar) -> {
+                                    if (ar.failed()) {
+                                        log.error("Failed to pipe file upload");
+                                        ctx.response().reset();
+                                        vertx.fileSystem().delete(zip.toString());
+                                    } else {
+                                        ctx.response().setStatusCode(204).end();
+                                    }
+                                });
+                            });
+
+                });
     }
 
     public void liveCode(RoutingContext ctx) {

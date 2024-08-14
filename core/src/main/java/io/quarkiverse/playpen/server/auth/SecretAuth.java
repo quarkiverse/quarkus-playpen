@@ -13,7 +13,7 @@ public class SecretAuth implements PlaypenAuth {
     public void authenticate(RoutingContext ctx, Runnable success) {
         String authorizationHeader = ctx.request().getHeader(AUTHORIZATION);
         if (authorizationHeader == null || !authorizationHeader.startsWith(SECRET)) {
-            ctx.response().setStatusCode(401).putHeader(WWW_AUTHENTICATE, "Secret").end();
+            challenge(ctx);
             return;
         }
         int idx = authorizationHeader.indexOf("Secret");
@@ -27,5 +27,10 @@ public class SecretAuth implements PlaypenAuth {
             return;
         }
         success.run();
+    }
+
+    @Override
+    public void challenge(RoutingContext ctx) {
+        ctx.response().setStatusCode(401).putHeader(WWW_AUTHENTICATE, "Secret").end();
     }
 }

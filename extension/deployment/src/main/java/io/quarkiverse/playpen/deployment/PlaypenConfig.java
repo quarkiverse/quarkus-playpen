@@ -40,6 +40,24 @@ public class PlaypenConfig {
     public Optional<String> credentials;
 
     /**
+     * Execute a playpen command.
+     * Only the command will execute. dev and remote-dev modes will not create a connection
+     *
+     * create-remote - creates a remote container based on this project. uri and maybe credentials must be set
+     * delete-remote - delete a remote container
+     */
+    @ConfigItem
+    public Optional<String> command;
+
+    /**
+     * SESSION - creates a remote container and deletes it when exiting remote dev
+     * CREATE - creates a remote container, but does not delete it on exit
+     *
+     */
+    @ConfigItem
+    public Optional<String> remotePolicy;
+
+    /**
      * If true, quarkus will not connect to playpen on boot. Connection would have
      * to be done manually from the recorder method.
      *

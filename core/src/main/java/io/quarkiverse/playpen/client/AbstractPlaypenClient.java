@@ -156,9 +156,15 @@ public abstract class AbstractPlaypenClient {
                     return;
                 } else if (response.statusCode() == 401) {
                     String wwwAuthenticate = response.getHeader(PlaypenAuth.WWW_AUTHENTICATE);
-                    if (wwwAuthenticate == null) {
+                    if (wwwAuthenticate == null || authHeader != null) {
+                        // authHeader != null means we sent bad credentials
                         logError("Could not authenticate connection");
                         latch.countDown();
+                        return;
+                    } else if (credentials == null) {
+                        logError("Could not authenticate connection. Please set credentials");
+                        latch.countDown();
+                        return;
                     }
                     if (challenged) {
                         String message = "";

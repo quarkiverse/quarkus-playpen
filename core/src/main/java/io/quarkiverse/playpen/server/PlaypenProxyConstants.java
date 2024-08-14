@@ -14,4 +14,7 @@ public interface PlaypenProxyConstants {
     String POLL_TIMEOUT = "X-Playpen-Poll-Timeout";
     String APPLICATION_QUARKUS = "application/quarkus-live-reload";
     String REMOTE_API_PATH = "/remote";
+    String DEPLOYMENT_PATH = "/deployment";
+    String DEPLOYMENT_ZIP_PATH = "/deployment/zip";
+    String CONNECT_PATH = "/connect";
 }

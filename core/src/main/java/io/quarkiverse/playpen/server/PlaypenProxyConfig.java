@@ -10,4 +10,5 @@ public class PlaypenProxyConfig {
     public long timerPeriod = 1000;
     public String clientPathPrefix = "";
     public String version = "UNKNOWN";
+    public String basePlaypenDirectory = "/playpens";
 }

@@ -21,6 +21,8 @@ public interface PlaypenAuth {
      */
     void authenticate(RoutingContext ctx, Runnable success);
 
+    void challenge(RoutingContext ctx);
+
     default boolean authorized(RoutingContext ctx, LocalDevPlaypenServer.LocalDevPlaypen session) {
         return session.validateToken(ctx);
     }

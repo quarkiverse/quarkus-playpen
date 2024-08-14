@@ -33,7 +33,7 @@ public class PlaypenProcessor {
             ShutdownContextBuildItem shutdown,
             PlaypenConfig config,
             LocalPlaypenRecorder proxy) {
-        if (config.uri.isPresent()) {
+        if (config.uri.isPresent() && !config.command.isPresent()) {
             PlaypenConnectionConfig playpen = PlaypenConnectionConfig.fromUri(config.uri.get());
             if (playpen.error != null) {
                 throw new RuntimeException(playpen.error);

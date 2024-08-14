@@ -18,4 +18,9 @@ public class NoAuth implements PlaypenAuth {
     public void propagateToken(RoutingContext ctx, LocalDevPlaypenServer.LocalDevPlaypen session) {
 
     }
+
+    @Override
+    public void challenge(RoutingContext ctx) {
+        ctx.response().setStatusCode(204).end();
+    }
 }

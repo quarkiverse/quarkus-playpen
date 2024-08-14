@@ -53,6 +53,18 @@ public class PlaypenProxy {
         };
     }
 
+    public LocalDevPlaypenServer getLocal() {
+        return local;
+    }
+
+    public RemoteDevPlaypenServer getRemote() {
+        return remote;
+    }
+
+    public PlaypenProxyConfig getConfig() {
+        return config;
+    }
+
     public void init(Vertx vertx, Router proxyRouter, Router clientApiRouter, PlaypenProxyConfig config) {
         this.vertx = vertx;
         this.config = config;
@@ -73,6 +85,8 @@ public class PlaypenProxy {
         clientApiRouter.route("/version").method(HttpMethod.GET)
                 .handler(
                         (ctx) -> ctx.response().setStatusCode(200).putHeader("Content-Type", "text/plain").end(config.version));
+        clientApiRouter.route("/version").method(HttpMethod.GET)
+                .handler(this::challenge);
 
         local.init(this, clientApiRouter);
         remote.init(this, clientApiRouter);
@@ -172,6 +186,10 @@ public class PlaypenProxy {
         log.debugv("Shutdown session {0}", who);
         playpen.close();
         ctx.response().setStatusCode(204).end();
+    }
+
+    public void challenge(RoutingContext ctx) {
+        auth.challenge(ctx);
     }
 
 }

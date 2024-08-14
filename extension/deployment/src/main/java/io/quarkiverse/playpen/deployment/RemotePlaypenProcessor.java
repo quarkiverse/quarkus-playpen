@@ -1,5 +1,7 @@
 package io.quarkiverse.playpen.deployment;
 
+import java.nio.file.Path;
+
 import org.jboss.logging.Logger;
 
 import io.quarkiverse.playpen.client.RemotePlaypenClient;
@@ -13,14 +15,68 @@ import io.quarkus.runtime.LiveReloadConfig;
 public class RemotePlaypenProcessor {
     private static final Logger log = Logger.getLogger(RemotePlaypenProcessor.class);
 
+    private Path zip(JarBuildItem jar) throws Exception {
+        Path dst = jar.getPath().getParent().getParent().resolve("upload.zip");
+        ZipDirectory.zip(jar.getPath().getParent(), dst);
+        return dst;
+    }
+
+    @BuildStep
+    public ArtifactResultBuildItem command(LiveReloadConfig liveReload, PlaypenConfig config, JarBuildItem jar)
+            throws Exception {
+        if (config.command.isPresent()) {
+            String command = config.command.get();
+            if ("create-remote".equalsIgnoreCase(command)) {
+                createRemote(liveReload, config, jar);
+            } else {
+                log.error("Illegal playpen command: " + command);
+            }
+        }
+        return null;
+    }
+
+    private void createRemote(LiveReloadConfig liveReload, PlaypenConfig config, JarBuildItem jar) throws Exception {
+        RemotePlaypenClient client = getRemotePlaypenClient(liveReload, config);
+        if (client == null)
+            return;
+        Path zip = zip(jar);
+        if (!client.create(zip)) {
+            log.warn("Failed to create remote playpen");
+            return;
+        }
+        // test purposes
+        client.download(zip.getParent().resolve("download.zip"));
+
+    }
+
     @BuildStep(onlyIf = IsRemoteDevClient.class)
     public ArtifactResultBuildItem playpen(LiveReloadConfig liveReload, PlaypenConfig config, JarBuildItem jar,
             CuratedApplicationShutdownBuildItem closeBuildItem)
             throws Exception {
-        if (!config.uri.isPresent()) {
+        if (!config.uri.isPresent() || config.command.isPresent()) {
             return null;
         }
 
+        RemotePlaypenClient client = getRemotePlaypenClient(liveReload, config);
+        if (client == null)
+            return null;
+
+        boolean status = client.connect();
+        if (!status) {
+            log.error("Failed to connect to playpen");
+        }
+        closeBuildItem.addCloseTask(() -> {
+            try {
+                client.disconnect();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }, true);
+        return null;
+    }
+
+    private static RemotePlaypenClient getRemotePlaypenClient(LiveReloadConfig liveReload, PlaypenConfig config)
+            throws Exception {
         String url = config.uri.get();
         String queryString = "";
         if (url.contains("://")) {
@@ -32,7 +88,7 @@ public class RemotePlaypenProcessor {
         } else {
             if (!liveReload.url.isPresent()) {
                 log.warn(
-                        "Cannot start remote playpen.  quarkus.playpen.uri is not a full uri and quarkus.live-reload.url is not set");
+                        "Cannot create remote playpen client.  quarkus.playpen.uri is not a full uri and quarkus.live-reload.url is not set");
                 return null;
             }
             queryString = url;
@@ -40,18 +96,7 @@ public class RemotePlaypenProcessor {
         }
         String creds = config.credentials.orElse(liveReload.password.orElse(null));
 
-        boolean status = RemotePlaypenClient.connect(url, creds, queryString);
-        if (!status) {
-            log.error("Failed to connect to playpen");
-        }
-        String finalUrl = url;
-        closeBuildItem.addCloseTask(() -> {
-            try {
-                RemotePlaypenClient.disconnect(finalUrl, creds);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }, true);
-        return null;
+        RemotePlaypenClient client = new RemotePlaypenClient(url, creds, queryString);
+        return client;
     }
 }
