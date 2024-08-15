@@ -71,6 +71,8 @@ rules:
       - services
       - deployments
       - secrets
+      - serviceaccounts
+      - rolebindings
     verbs:
       - get
       - list
@@ -94,6 +96,39 @@ rules:
       - networking.k8s.io
     resources:
       - ingresses
+    verbs:
+      - get
+      - list
+      - patch
+      - update
+      - create
+      - delete
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - rolebindings
+    verbs:
+      - get
+      - list
+      - patch
+      - update
+      - create
+      - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/part-of: quarkus-playpen
+  name: playpen-proxy-cluster-role
+rules:
+  - apiGroups:
+      - ""
+      - apps
+    resources:
+      - services
+      - deployments
+      - secrets
     verbs:
       - get
       - list

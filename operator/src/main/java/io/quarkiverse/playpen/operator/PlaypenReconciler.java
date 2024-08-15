@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.UnaryOperator;
 
+import io.fabric8.openshift.api.model.RoleBindingBuilder;
 import jakarta.inject.Inject;
 
 import org.apache.commons.lang3.RandomStringUtils;
@@ -70,6 +71,28 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
         return config;
     }
 
+
+    private void createServiceAccount(Playpen primary) {
+        String name = playpenDeployment(primary);
+        var account = new ServiceAccountBuilder()
+                .withMetadata(createMetadata(primary, name)).build();
+        client.serviceAccounts().resource(account).serverSideApply();
+        primary.getStatus().getCleanup().add(0, new PlaypenStatus.CleanupResource("serviceaccount", name));
+
+        String roleBindingName = name + "-rolebinding";
+        var rolebinding = new RoleBindingBuilder()
+                .withMetadata(createMetadata(primary, roleBindingName))
+                .withNewRoleRef()
+                .withKind("ClusterRole")
+                .withName("playpen-proxy-cluster-role")
+                .endRoleRef()
+                .addNewSubject()
+                .withName(name)
+                .withKind("ServiceAccount")
+                .endSubject().build();
+        client.roleBindings().resource(rolebinding).serverSideApply();
+        primary.getStatus().getCleanup().add(0, new PlaypenStatus.CleanupResource("rolebinding", name));
+    }
     public static String playpenDeployment(Playpen primary) {
         return primary.getMetadata().getName() + "-playpen";
     }
@@ -81,7 +104,7 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
         String imagePullPolicy = proxyImagePullPolicy;
 
         var container = new DeploymentBuilder()
-                .withMetadata(PlaypenReconciler.createMetadata(primary, name))
+                .withMetadata(createMetadata(primary, name))
                 .withNewSpec()
                 .withReplicas(1)
                 .withNewSelector()
@@ -126,6 +149,7 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                 .endContainer();
 
         Deployment deployment = spec
+                .withServiceAccount(name)
                 .endSpec()
                 .endTemplate()
                 .endSpec()
@@ -312,6 +336,7 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                 if (auth == AuthenticationType.secret) {
                     createSecret(playpen);
                 }
+                createServiceAccount(playpen);
                 createProxyDeployment(playpen, configSpec, auth);
                 createOriginService(playpen, configSpec);
                 createClientService(playpen, configSpec);
@@ -386,6 +411,12 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                             .withName(cleanup.getName()).delete());
                 } else if (cleanup.getType().equals("ingress")) {
                     suppress(() -> client.network().v1().ingresses().inNamespace(playpen.getMetadata().getNamespace())
+                            .withName(cleanup.getName()).delete());
+                } else if (cleanup.getType().equals("serviceaccount")) {
+                    suppress(() -> client.serviceAccounts().inNamespace(playpen.getMetadata().getNamespace())
+                            .withName(cleanup.getName()).delete());
+                } else if (cleanup.getType().equals("rolebinding")) {
+                    suppress(() -> client.roleBindings().inNamespace(playpen.getMetadata().getNamespace())
                             .withName(cleanup.getName()).delete());
                 }
             }
