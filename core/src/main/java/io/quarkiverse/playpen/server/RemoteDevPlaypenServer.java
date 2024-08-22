@@ -9,7 +9,6 @@ import java.util.Map;
 import org.jboss.logging.Logger;
 
 import io.netty.handler.codec.http.HttpHeaderNames;
-import io.quarkiverse.playpen.MockRemotePlaypenManager;
 import io.quarkiverse.playpen.server.matchers.HeaderOrCookieMatcher;
 import io.quarkiverse.playpen.server.matchers.PathParamMatcher;
 import io.quarkiverse.playpen.server.matchers.PlaypenMatcher;
@@ -139,12 +138,12 @@ public class RemoteDevPlaypenServer {
         clientApiPath = master.config.clientPathPrefix + PlaypenProxyConstants.REMOTE_API_PATH + "/:who/_playpen_api";
 
         // CLIENT API
-        clientApiRouter.route(clientApiPath + PlaypenProxyConstants.DEPLOYMENT_PATH).method(HttpMethod.POST)
+        clientApiRouter.route(clientApiPath + PlaypenProxyConstants.QUARKUS_DEPLOYMENT_PATH).method(HttpMethod.POST)
                 .handler(this::createDeployment);
         clientApiRouter.route(clientApiPath + PlaypenProxyConstants.DEPLOYMENT_PATH).method(HttpMethod.GET)
-                .handler(this::deployment);
+                .blockingHandler(this::deployment);
         clientApiRouter.route(clientApiPath + PlaypenProxyConstants.DEPLOYMENT_PATH).method(HttpMethod.DELETE)
-                .handler(this::deleteDeployment);
+                .blockingHandler(this::deleteDeployment);
         clientApiRouter.route(clientApiPath + PlaypenProxyConstants.DEPLOYMENT_ZIP_PATH).method(HttpMethod.GET)
                 .handler(this::deploymentFiles);
         clientApiRouter.route(clientApiPath + PlaypenProxyConstants.CONNECT_PATH).method(HttpMethod.POST)
@@ -157,7 +156,14 @@ public class RemoteDevPlaypenServer {
     }
 
     public void deployment(RoutingContext ctx) {
-        ctx.response().setStatusCode(500).end();
+
+        String who = ctx.pathParam("who");
+        if (manager.exists(who)) {
+            ctx.response().setStatusCode(204).end();
+        } else {
+            ctx.response().setStatusCode(404).end();
+        }
+
     }
 
     public void deleteDeployment(RoutingContext ctx) {
@@ -165,6 +171,7 @@ public class RemoteDevPlaypenServer {
         Path path = Paths.get(master.config.basePlaypenDirectory).resolve(who);
         Path zip = path.resolve("project.zip");
         vertx.fileSystem().delete(zip.toString());
+        manager.delete(who);
 
     }
 
@@ -209,7 +216,8 @@ public class RemoteDevPlaypenServer {
 
     public void createDeployment(RoutingContext ctx) {
         String who = ctx.pathParam("who");
-        log.debugv("createDeployment {0}", who);
+        boolean manualPod = !ctx.queryParam("manual").isEmpty();
+        log.debugv("createDeployment {0} manual = ", who, manualPod);
         /*
          * TODO
          * if (manager.exists(who)) {
@@ -221,18 +229,20 @@ public class RemoteDevPlaypenServer {
         ctx.request().pause();
         Path path = Paths.get(master.config.basePlaypenDirectory).resolve(who);
         Path zip = path.resolve("project.zip");
+        log.debugv("Creating path: " + path.toString());
         vertx.fileSystem().mkdirs(path.toString())
                 .onFailure(event -> {
-                    log.error("Could not create deployment directories");
-                    ctx.response().setStatusCode(500).end();
+                    log.error("Could not create deployment directories", event);
+                    // for some reason, have to reset.  Probably because client is still sending and request was paused?
+                    ctx.response().setStatusCode(500).reset();
                 })
                 .onSuccess(event -> {
                     log.debug("Made directories");
                     vertx.fileSystem().open(zip.toString(), new OpenOptions().setTruncateExisting(true).setWrite(true))
                             .onFailure(event1 -> {
-                                log.error("Could not open zip");
-                                ctx.response().setStatusCode(500).end();
-
+                                log.error("Could not open zip", event1);
+                                // for some reason, have to reset.  Probably because client is still sending and request was paused?
+                                ctx.response().setStatusCode(500).reset();
                             })
                             .onSuccess(async -> {
                                 log.debug("Opened async file to write");
@@ -255,12 +265,24 @@ public class RemoteDevPlaypenServer {
                                         ctx.response().reset();
                                         vertx.fileSystem().delete(zip.toString());
                                     } else {
-                                        ctx.response().setStatusCode(204).end();
+                                        if (manualPod) {
+                                            ctx.response().setStatusCode(201).end();
+                                        } else {
+                                            createQuarkusDeployment(ctx, who);
+                                        }
                                     }
                                 });
                             });
 
                 });
+    }
+
+    private void createQuarkusDeployment(RoutingContext ctx, String who) {
+        vertx.executeBlocking(() -> {
+            manager.create(who);
+            ctx.response().setStatusCode(201).end();
+            return null;
+        });
     }
 
     public void liveCode(RoutingContext ctx) {

@@ -15,6 +15,7 @@ public interface PlaypenProxyConstants {
     String APPLICATION_QUARKUS = "application/quarkus-live-reload";
     String REMOTE_API_PATH = "/remote";
     String DEPLOYMENT_PATH = "/deployment";
+    String QUARKUS_DEPLOYMENT_PATH = DEPLOYMENT_PATH + "/quarkus";
     String DEPLOYMENT_ZIP_PATH = "/deployment/zip";
     String CONNECT_PATH = "/connect";
 }

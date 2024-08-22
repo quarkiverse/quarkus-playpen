@@ -10,7 +10,7 @@ public class PlaypenProxyConfig {
     public long timerPeriod = 1000;
     public String clientPathPrefix = "";
     public String version = "UNKNOWN";
-    public String basePlaypenDirectory = "/playpens";
-    public String remotePlaypenImage = "docker.io/quarkus-playpen/remote-java-playpen";
+    public String basePlaypenDirectory = "/home/jboss/playpens";
+    public String remotePlaypenImage = "docker.io/quarkus-playpen/remote-quarkus-playpen";
     public String remotePlaypenImagePolicy = "IfNotPresent";
 }

@@ -26,8 +26,12 @@ public class RemotePlaypenProcessor {
             throws Exception {
         if (config.command.isPresent()) {
             String command = config.command.get();
-            if ("create-remote".equalsIgnoreCase(command)) {
-                createRemote(liveReload, config, jar);
+            if ("create-remote-manual".equalsIgnoreCase(command)) {
+                createRemote(liveReload, config, jar, true);
+            } else if ("create-remote".equalsIgnoreCase(command)) {
+                createRemote(liveReload, config, jar, false);
+            } else if ("download-remote".equalsIgnoreCase(command)) {
+                downloadRemote(liveReload, config, jar);
             } else {
                 log.error("Illegal playpen command: " + command);
             }
@@ -35,18 +39,20 @@ public class RemotePlaypenProcessor {
         return null;
     }
 
-    private void createRemote(LiveReloadConfig liveReload, PlaypenConfig config, JarBuildItem jar) throws Exception {
+    private void downloadRemote(LiveReloadConfig liveReload, PlaypenConfig config, JarBuildItem jar) throws Exception {
         RemotePlaypenClient client = getRemotePlaypenClient(liveReload, config);
-        if (client == null)
-            return;
+        client.download(jar.getPath().getParent().getParent().resolve("download.zip"));
+
+    }
+
+    private void createRemote(LiveReloadConfig liveReload, PlaypenConfig config, JarBuildItem jar, boolean manual)
+            throws Exception {
+        RemotePlaypenClient client = getRemotePlaypenClient(liveReload, config);
         Path zip = zip(jar);
-        if (!client.create(zip)) {
+        if (!client.create(zip, manual)) {
             log.warn("Failed to create remote playpen");
             return;
         }
-        // test purposes
-        client.download(zip.getParent().resolve("download.zip"));
-
     }
 
     @BuildStep(onlyIf = IsRemoteDevClient.class)
@@ -58,9 +64,6 @@ public class RemotePlaypenProcessor {
         }
 
         RemotePlaypenClient client = getRemotePlaypenClient(liveReload, config);
-        if (client == null)
-            return null;
-
         boolean status = client.connect();
         if (!status) {
             log.error("Failed to connect to playpen");

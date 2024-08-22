@@ -48,7 +48,7 @@ public class RemotePlaypenManagerTestCase {
 
         server.getProxyServer().getConfig().basePlaypenDirectory = file.toPath().getParent().resolve("playpens").toString();
 
-        Assertions.assertTrue(client.create(file.toPath()));
+        Assertions.assertTrue(client.create(file.toPath(), true));
         File download = File.createTempFile("download", ".txt");
         Assertions.assertTrue(client.download(download.toPath()));
         Assertions.assertTrue(download.exists());

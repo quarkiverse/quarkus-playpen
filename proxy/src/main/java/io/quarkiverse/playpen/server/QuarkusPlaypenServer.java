@@ -9,6 +9,7 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkiverse.playpen.server.auth.NoAuth;
 import io.quarkiverse.playpen.server.auth.OpenshiftBasicAuth;
 import io.quarkiverse.playpen.server.auth.PlaypenAuth;
@@ -71,6 +72,17 @@ public class QuarkusPlaypenServer {
     @ConfigProperty(name = "client.path.prefix")
     protected Optional<String> clientPathPrefix;
 
+    @Inject
+    @ConfigProperty(name = "remote.playpen.image", defaultValue = "quay.io/quarkus-playpen/remote-quarkus-playpen:latest")
+    String remotePlaypenImage;
+
+    @Inject
+    @ConfigProperty(name = "remote.playpen.imagepullpolicy", defaultValue = "Always")
+    String remotePlaypenImagePolicy;
+
+    @Inject
+    protected KubernetesClient client;
+
     protected PlaypenProxy proxyServer;
     private HttpServer clientApi;
 
@@ -89,6 +101,10 @@ public class QuarkusPlaypenServer {
         config.idleTimeout = idleTimeout;
         config.defaultPollTimeout = pollTimeout;
         config.version = version;
+        config.remotePlaypenImage = remotePlaypenImage;
+        config.remotePlaypenImagePolicy = remotePlaypenImagePolicy;
+        KubernetesPlaypenManager manager = new KubernetesPlaypenManager(client, config);
+        proxyServer.getRemote().setManager(manager);
 
         if (PlaypenAuth.OPENSHIFT_BASIC_AUTH.equalsIgnoreCase(authType)) {
             log.info("Openshift Basic Auth: " + oauthUrl);

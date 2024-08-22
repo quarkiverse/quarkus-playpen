@@ -6,7 +6,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.UnaryOperator;
 
-import io.fabric8.openshift.api.model.RoleBindingBuilder;
 import jakarta.inject.Inject;
 
 import org.apache.commons.lang3.RandomStringUtils;
@@ -19,6 +18,7 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.api.model.networking.v1.Ingress;
 import io.fabric8.kubernetes.api.model.networking.v1.IngressBuilder;
 import io.fabric8.kubernetes.api.model.networking.v1.IngressFluent;
+import io.fabric8.kubernetes.api.model.rbac.RoleBindingBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -50,6 +50,14 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
     @ConfigProperty(name = "proxy.imagepullpolicy", defaultValue = "Always")
     String proxyImagePullPolicy;
 
+    @Inject
+    @ConfigProperty(name = "remote.playpen.image", defaultValue = "quay.io/quarkus-playpen/remote-java-playpen:latest")
+    String remotePlaypenImage;
+
+    @Inject
+    @ConfigProperty(name = "remote.playpen.imagepullpolicy", defaultValue = "Always")
+    String remotePlaypenImagePolicy;
+
     private PlaypenConfigSpec getPlaypenConfig(Playpen primary) {
         PlaypenConfig config = findPlaypenConfig(primary);
         return toDefaultedSpec(config);
@@ -71,7 +79,6 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
         return config;
     }
 
-
     private void createServiceAccount(Playpen primary) {
         String name = playpenDeployment(primary);
         var account = new ServiceAccountBuilder()
@@ -90,9 +97,10 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                 .withName(name)
                 .withKind("ServiceAccount")
                 .endSubject().build();
-        client.roleBindings().resource(rolebinding).serverSideApply();
+        client.rbac().roleBindings().resource(rolebinding).serverSideApply();
         primary.getStatus().getCleanup().add(0, new PlaypenStatus.CleanupResource("rolebinding", name));
     }
+
     public static String playpenDeployment(Playpen primary) {
         return primary.getMetadata().getName() + "-playpen";
     }
@@ -141,6 +149,8 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                 .addNewEnv().withName("IDLE_TIMEOUT").withValue(Long.toString(idleTimeout)).endEnv()
                 .addNewEnv().withName("CLIENT_API_PORT").withValue("8081").endEnv()
                 .addNewEnv().withName("AUTHENTICATION_TYPE").withValue(auth.name()).endEnv()
+                .addNewEnv().withName("REMOTE_PLAYPEN_IMAGE").withValue(remotePlaypenImage).endEnv()
+                .addNewEnv().withName("REMOTE_PLAYPEN_IMAGEPULLPOLICY").withValue(remotePlaypenImagePolicy).endEnv()
                 .withImage(image)
                 .withImagePullPolicy(imagePullPolicy)
                 .withName(name)
@@ -416,7 +426,7 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                     suppress(() -> client.serviceAccounts().inNamespace(playpen.getMetadata().getNamespace())
                             .withName(cleanup.getName()).delete());
                 } else if (cleanup.getType().equals("rolebinding")) {
-                    suppress(() -> client.roleBindings().inNamespace(playpen.getMetadata().getNamespace())
+                    suppress(() -> client.rbac().roleBindings().inNamespace(playpen.getMetadata().getNamespace())
                             .withName(cleanup.getName()).delete());
                 }
             }

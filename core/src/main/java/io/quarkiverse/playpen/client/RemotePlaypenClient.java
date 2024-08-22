@@ -87,6 +87,7 @@ public class RemotePlaypenClient {
 
     public boolean connect() throws Exception {
         String connectUrl = apiUrl("connect");
+        connectUrl = connectUrl + "?" + configString;
 
         log.info("Sending connect " + connectUrl);
         URL httpUrl = new URL(connectUrl);
@@ -189,8 +190,11 @@ public class RemotePlaypenClient {
         }
     }
 
-    public boolean create(Path zip) throws Exception {
-        String connectUrl = apiUrl(PlaypenProxyConstants.DEPLOYMENT_PATH);
+    public boolean create(Path zip, boolean manual) throws Exception {
+        String connectUrl = apiUrl(PlaypenProxyConstants.QUARKUS_DEPLOYMENT_PATH);
+        if (manual) {
+            connectUrl = connectUrl + "?manual=true";
+        }
 
         log.info("Sending deployment " + connectUrl);
         URL httpUrl = new URL(connectUrl);
@@ -204,11 +208,39 @@ public class RemotePlaypenClient {
             os.close();
 
             int responseCode = connection.getResponseCode();
-            if (responseCode == 204) {
-                log.info("Successfully set up playpen session.");
+            if (responseCode == 201) {
+                log.info("Successfully set up remote container.");
                 return true;
             } else {
-                log.error("Failed to connect to remote playpen: " + responseCode);
+                log.error("Failed to create to remote container: " + responseCode);
+                return false;
+            }
+        } catch (Exception ex) {
+            log.error("Failure sending request");
+            return false;
+        } finally {
+            try {
+                connection.disconnect();
+            } catch (Exception e) {
+
+            }
+        }
+    }
+
+    public boolean delete() throws Exception {
+        String connectUrl = apiUrl(PlaypenProxyConstants.DEPLOYMENT_PATH);
+        log.info("Sending delete " + connectUrl);
+        URL httpUrl = new URL(connectUrl);
+        HttpURLConnection connection = (HttpURLConnection) httpUrl.openConnection();
+        try {
+            connection.setRequestMethod("DELETE");
+            setAuth(connection);
+            int responseCode = connection.getResponseCode();
+            if (responseCode == 204) {
+                log.info("Successfully deleted remote container.");
+                return true;
+            } else {
+                log.error("Failed to delete remote container: " + responseCode);
                 return false;
             }
         } finally {

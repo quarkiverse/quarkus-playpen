@@ -1,8 +1,11 @@
-package io.quarkiverse.playpen;
-
-import io.quarkiverse.playpen.server.RemotePlaypenManager;
+package io.quarkiverse.playpen.server;
 
 public class MockRemotePlaypenManager implements RemotePlaypenManager {
+    @Override
+    public String get(String who) {
+        return "";
+    }
+
     @Override
     public boolean exists(String who) {
         return false;
