@@ -26,13 +26,13 @@ public class KubernetesPlaypenManager implements RemotePlaypenManager {
         this.config = config;
     }
 
-    private String getDeploymentName(String who) {
+    private String getPodName(String who) {
         return config.service + "-playpen-" + who;
     }
 
     @Override
     public boolean exists(String who) {
-        String name = getDeploymentName(who);
+        String name = getPodName(who);
         Pod pod = client.pods().withName(name).get();
         return pod != null;
     }
@@ -72,7 +72,13 @@ public class KubernetesPlaypenManager implements RemotePlaypenManager {
     }
 
     public void create(String who, String image, String imagePullPolicy, boolean copyEnv, Map<String, String> env) {
-        String name = getDeploymentName(who);
+        if (exists(who)) {
+            log.warn("Pod already exists");
+            delete(who);
+        }
+        String name = getPodName(who);
+        String url = "http://" + config.service + "-playpen" + config.clientPathPrefix + PlaypenProxyConstants.REMOTE_API_PATH
+                + "/" + who + "/_playpen_api" + PlaypenProxyConstants.DEPLOYMENT_ZIP_PATH;
 
         var container = new PodBuilder()
                 .withMetadata(createMetadata(name))
@@ -81,8 +87,9 @@ public class KubernetesPlaypenManager implements RemotePlaypenManager {
                 .withImage(image)
                 .withImagePullPolicy(imagePullPolicy)
                 .withName(name)
+                .addNewEnv().withName("PLAYPEN_CODE_URL")
+                .withValue(url).endEnv()
                 .addNewPort().withName("http").withContainerPort(8080).withProtocol("TCP").endPort();
-
         if (env != null) {
             env.forEach((s, s2) -> {
                 container.addNewEnv().withName(s).withValue(s2).endEnv();
@@ -94,22 +101,26 @@ public class KubernetesPlaypenManager implements RemotePlaypenManager {
                 container.addAllToEnv(curr);
             }
         }
-        container.addNewEnv().withName("PLAYPEN_CODE_URL")
-                .withValue("http://" + config.service + "-playpen" + PlaypenProxyConstants.DEPLOYMENT_ZIP_PATH);
         Pod pod = container.endContainer().endSpec().build();
-        client.pods().resource(pod).serverSideApply();
+        client.pods().resource(pod).create();
         client.pods().withName(name).waitUntilReady(1, TimeUnit.MINUTES);
     }
 
     @Override
     public String get(String who) {
-        String name = getDeploymentName(who);
+        String name = getPodName(who);
         Pod pod = client.pods().withName(name).get();
+        if (pod == null)
+            return null;
         return pod.getStatus().getPodIP() + ":8080";
     }
 
     @Override
     public void delete(String who) {
-        client.pods().withName(getDeploymentName(who)).delete();
+        try {
+            client.pods().withName(getPodName(who)).delete();
+        } catch (Exception e) {
+            log.error("Failed to delete", e);
+        }
     }
 }

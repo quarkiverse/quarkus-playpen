@@ -58,7 +58,7 @@ public class PlaypenConfig {
     public Optional<String> remotePolicy;
 
     /**
-     * If true, quarkus will not connect to playpen on boot. Connection would have
+     * If true, quarkus will not connect to local playpen on boot. Connection would have
      * to be done manually from the recorder method.
      *
      * This is for internal testing purposes only.

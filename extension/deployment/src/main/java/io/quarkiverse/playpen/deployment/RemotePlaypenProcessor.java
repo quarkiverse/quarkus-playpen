@@ -45,15 +45,14 @@ public class RemotePlaypenProcessor {
 
     }
 
-    private void createRemote(LiveReloadConfig liveReload, PlaypenConfig config, JarBuildItem jar, boolean manual)
+    private boolean createRemote(LiveReloadConfig liveReload, PlaypenConfig config, JarBuildItem jar, boolean manual)
             throws Exception {
         RemotePlaypenClient client = getRemotePlaypenClient(liveReload, config);
         Path zip = zip(jar);
-        if (!client.create(zip, manual)) {
-            log.warn("Failed to create remote playpen");
-            return;
-        }
+        return client.create(zip, manual);
     }
+
+    static boolean alreadyInvoked = false;
 
     @BuildStep(onlyIf = IsRemoteDevClient.class)
     public ArtifactResultBuildItem playpen(LiveReloadConfig liveReload, PlaypenConfig config, JarBuildItem jar,
@@ -62,17 +61,27 @@ public class RemotePlaypenProcessor {
         if (!config.uri.isPresent() || config.command.isPresent()) {
             return null;
         }
+        if (alreadyInvoked) {
+            log.info("****************  ALREADY INVOKED");
+            return null;
+        }
+
+        if (!createRemote(liveReload, config, jar, false)) {
+            return null;
+        }
 
         RemotePlaypenClient client = getRemotePlaypenClient(liveReload, config);
         boolean status = client.connect();
         if (!status) {
             log.error("Failed to connect to playpen");
+            return null;
         }
+        alreadyInvoked = true;
         closeBuildItem.addCloseTask(() -> {
             try {
                 client.disconnect();
             } catch (Exception e) {
-                throw new RuntimeException(e);
+                log.error(e);
             }
         }, true);
         return null;

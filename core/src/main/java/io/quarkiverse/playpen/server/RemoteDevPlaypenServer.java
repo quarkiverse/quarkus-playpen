@@ -39,24 +39,28 @@ public class RemoteDevPlaypenServer {
         volatile boolean running = true;
         List<PlaypenMatcher> matchers = new ArrayList<>();
         String host;
-        int port;
+        int port = -1;
+        final boolean deleteOnShutdown;
 
-        public RemoteDevPlaypen(String host, int port, String who) {
-            this.host = host;
+        public RemoteDevPlaypen(String host, String who, boolean deleteOnShutdown) {
+            this.deleteOnShutdown = deleteOnShutdown;
+            int idx = host.indexOf(':');
+            if (idx > -1) {
+                this.host = host.substring(0, idx);
+                String p = host.substring(idx + 1);
+                port = Integer.parseInt(p);
+            } else {
+                this.host = host;
+            }
             if (port == -1)
                 port = 80;
-            this.port = port;
             this.who = who;
             this.liveReloadPrefix = master.config.clientPathPrefix + "/remote/" + who;
             client = vertx.createHttpClient();
             sessionProxy = HttpProxy.reverseProxy(client);
             sessionProxy.addInterceptor(this);
             sessionProxy.origin(this.port, this.host);
-            log.debugv("RemoteSession for {0}:{1}", host, port);
-        }
-
-        public RemoteDevPlaypen(String who) {
-            this(master.config.service + "-playpen-" + who, 80, who);
+            log.debugv("RemoteSession for {0}:{1}", this.host, port);
         }
 
         @Override
@@ -106,6 +110,9 @@ public class RemoteDevPlaypenServer {
         public void close() {
             running = false;
             client.close();
+            if (deleteOnShutdown) {
+                deleteDeployment(who);
+            }
         }
 
         @Override
@@ -168,11 +175,18 @@ public class RemoteDevPlaypenServer {
 
     public void deleteDeployment(RoutingContext ctx) {
         String who = ctx.pathParam("who");
+        deleteDeployment(who);
+        ctx.response().setStatusCode(204).end();
+    }
+
+    private void deleteDeployment(String who) {
         Path path = Paths.get(master.config.basePlaypenDirectory).resolve(who);
         Path zip = path.resolve("project.zip");
         vertx.fileSystem().delete(zip.toString());
-        manager.delete(who);
-
+        vertx.executeBlocking(() -> {
+            manager.delete(who);
+            return null;
+        });
     }
 
     public void deploymentFiles(RoutingContext ctx) {
@@ -278,9 +292,15 @@ public class RemoteDevPlaypenServer {
     }
 
     private void createQuarkusDeployment(RoutingContext ctx, String who) {
+        log.debugv("Create quarkus deployment {0}", who);
         vertx.executeBlocking(() -> {
-            manager.create(who);
-            ctx.response().setStatusCode(201).end();
+            try {
+                manager.create(who);
+                ctx.response().setStatusCode(201).end();
+            } catch (Exception e) {
+                log.error("Failed to create remote playpen", e);
+                ctx.response().setStatusCode(500).end();
+            }
             return null;
         });
     }
@@ -311,7 +331,6 @@ public class RemoteDevPlaypenServer {
         List<PlaypenMatcher> matchers = new ArrayList<>();
         boolean isGlobal = false;
         String host = null;
-        int port = -1;
         for (Map.Entry<String, String> entry : ctx.queryParams()) {
             String key = entry.getKey();
             String value = entry.getValue();
@@ -344,12 +363,6 @@ public class RemoteDevPlaypenServer {
                 isGlobal = true;
             } else if ("host".equals(key)) {
                 host = value;
-                int idx = host.indexOf(':');
-                if (idx > -1) {
-                    host = value.substring(0, idx);
-                    String p = value.substring(idx + 1);
-                    port = Integer.parseInt(p);
-                }
             }
         }
         log.debugv("Is global session: {0}", isGlobal);
@@ -393,24 +406,41 @@ public class RemoteDevPlaypenServer {
         }
         boolean finalIsGlobal = isGlobal;
         String finalHost = host;
-        int finalPort = port;
-        log.debugv("Creating new session: {0} {1} {2}", isGlobal, finalHost, finalPort);
+        log.debugv("Creating new session: {0} {1}", isGlobal, finalHost);
         master.auth.authenticate(ctx, () -> {
-            RemoteDevPlaypen newSession;
             if (finalHost == null) {
-                newSession = new RemoteDevPlaypen(who);
+                // we are expecting that a pod was created with temporary remote playpen
+                vertx.executeBlocking(() -> {
+                    try {
+                        String theHost = manager.get(who);
+                        if (theHost == null) {
+                            log.warnv("Remote playpen {0} does not exist", who);
+                            ctx.response().setStatusCode(404).end();
+                        }
+                        setupSession(ctx, theHost, who, matchers, finalIsGlobal, true);
+                    } catch (Exception e) {
+                        log.error("Failed to setup session", e);
+                        ctx.response().setStatusCode(500).end();
+                    }
+                    return null;
+                });
             } else {
-                newSession = new RemoteDevPlaypen(finalHost, finalPort, who);
+                setupSession(ctx, finalHost, who, matchers, finalIsGlobal, false);
             }
-            newSession.matchers = matchers;
-            if (finalIsGlobal) {
-                master.globalSession = newSession;
-            } else {
-                newSession.matchers.add(new HeaderOrCookieMatcher(PlaypenProxyConstants.SESSION_HEADER, who));
-                master.sessions.put(who, newSession);
-            }
-            ctx.response().setStatusCode(204).end();
         });
+    }
+
+    private void setupSession(RoutingContext ctx, String host, String who, List<PlaypenMatcher> matchers, boolean finalIsGlobal,
+            boolean deleteOnClose) {
+        RemoteDevPlaypen newSession = new RemoteDevPlaypen(host, who, deleteOnClose);
+        newSession.matchers = matchers;
+        if (finalIsGlobal) {
+            master.globalSession = newSession;
+        } else {
+            newSession.matchers.add(new HeaderOrCookieMatcher(PlaypenProxyConstants.SESSION_HEADER, who));
+            master.sessions.put(who, newSession);
+        }
+        ctx.response().setStatusCode(204).end();
     }
 
     public void deleteClientConnection(RoutingContext ctx) {
