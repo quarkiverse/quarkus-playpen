@@ -62,15 +62,15 @@ public class RemotePlaypenProcessor {
             return null;
         }
         if (alreadyInvoked) {
-            log.info("****************  ALREADY INVOKED");
             return null;
         }
-
-        if (!createRemote(liveReload, config, jar, false)) {
-            return null;
-        }
-
         RemotePlaypenClient client = getRemotePlaypenClient(liveReload, config);
+
+        boolean createRemote = !client.isConnectingToExistingHost();
+        if (createRemote && !createRemote(liveReload, config, jar, false)) {
+            return null;
+        }
+
         boolean status = client.connect();
         if (!status) {
             log.error("Failed to connect to playpen");
@@ -80,6 +80,15 @@ public class RemotePlaypenProcessor {
         closeBuildItem.addCloseTask(() -> {
             try {
                 client.disconnect();
+                if (createRemote) {
+                    log.info("Waiting for remote playpen cleanup...");
+                    for (int i = 0; i < 30; i++) {
+                        if (client.remotePlaypenExists()) {
+                            break;
+                        }
+                        Thread.sleep(2000);
+                    }
+                }
             } catch (Exception e) {
                 log.error(e);
             }

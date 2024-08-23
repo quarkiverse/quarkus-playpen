@@ -112,13 +112,22 @@ public class KubernetesPlaypenManager implements RemotePlaypenManager {
         Pod pod = client.pods().withName(name).get();
         if (pod == null)
             return null;
+        if (pod.getStatus() == null) {
+            return null;
+        }
+        if (pod.getStatus().getPodIP() == null) {
+            return null;
+        }
         return pod.getStatus().getPodIP() + ":8080";
     }
 
     @Override
     public void delete(String who) {
+        String podName = getPodName(who);
+        log.debugv("Deleting pod {0}", podName);
         try {
-            client.pods().withName(getPodName(who)).delete();
+            client.pods().withName(podName).delete();
+            log.debugv("Deleted pod {0}", podName);
         } catch (Exception e) {
             log.error("Failed to delete", e);
         }

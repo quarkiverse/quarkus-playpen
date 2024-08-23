@@ -5,6 +5,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
 
 import org.jboss.logging.Logger;
 
@@ -18,6 +19,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.file.OpenOptions;
 import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.streams.Pipe;
@@ -30,6 +32,43 @@ import io.vertx.httpproxy.ProxyInterceptor;
 import io.vertx.httpproxy.ProxyResponse;
 
 public class RemoteDevPlaypenServer {
+    public static class HostPort {
+        public final String host;
+        public final int port;
+
+        public HostPort(String val) {
+            int idx = val.indexOf(':');
+            int p = -1;
+            if (idx > -1) {
+                this.host = val.substring(0, idx);
+                String pStr = val.substring(idx + 1);
+                p = Integer.parseInt(pStr);
+            } else {
+                this.host = val;
+            }
+            if (p == -1)
+                p = 80;
+            this.port = p;
+        }
+    }
+
+    public static void parseHost(String val, BiConsumer<String, Integer> values) {
+        String host;
+        int port;
+        int idx = val.indexOf(':');
+        int p = -1;
+        if (idx > -1) {
+            host = val.substring(0, idx);
+            String pStr = val.substring(idx + 1);
+            p = Integer.parseInt(pStr);
+        } else {
+            host = val;
+        }
+        if (p == -1)
+            p = 80;
+        port = p;
+        values.accept(host, port);
+    }
 
     class RemoteDevPlaypen implements ProxyInterceptor, Playpen {
         HttpClient client;
@@ -41,19 +80,15 @@ public class RemoteDevPlaypenServer {
         String host;
         int port = -1;
         final boolean deleteOnShutdown;
+        long timerId;
+        volatile long lastRequest = System.currentTimeMillis();
 
         public RemoteDevPlaypen(String host, String who, boolean deleteOnShutdown) {
             this.deleteOnShutdown = deleteOnShutdown;
-            int idx = host.indexOf(':');
-            if (idx > -1) {
-                this.host = host.substring(0, idx);
-                String p = host.substring(idx + 1);
-                port = Integer.parseInt(p);
-            } else {
-                this.host = host;
-            }
-            if (port == -1)
-                port = 80;
+            parseHost(host, (s, integer) -> {
+                this.host = s;
+                this.port = integer;
+            });
             this.who = who;
             this.liveReloadPrefix = master.config.clientPathPrefix + "/remote/" + who;
             client = vertx.createHttpClient();
@@ -61,6 +96,16 @@ public class RemoteDevPlaypenServer {
             sessionProxy.addInterceptor(this);
             sessionProxy.origin(this.port, this.host);
             log.debugv("RemoteSession for {0}:{1}", this.host, port);
+            timerId = vertx.setPeriodic(config.timerPeriod, this::timerCallback);
+        }
+
+        void timerCallback(Long t) {
+            if (!running)
+                return;
+            if (System.currentTimeMillis() - lastRequest > config.idleTimeout) {
+                log.warnv("Shutting down remote playpen {0} due to idle timeout.", who);
+                close();
+            }
         }
 
         @Override
@@ -78,6 +123,7 @@ public class RemoteDevPlaypenServer {
                 log.error("Trying to send liveCode request through actual service is not allowed");
                 ctx.response().setStatusCode(403).end();
             }
+            lastRequest = System.currentTimeMillis();
             sessionProxy.handle(ctx.request());
         }
 
@@ -87,6 +133,7 @@ public class RemoteDevPlaypenServer {
                 ctx.response().setStatusCode(403).end();
                 return;
             }
+            lastRequest = System.currentTimeMillis();
             sessionProxy.handle(ctx.request());
         }
 
@@ -108,10 +155,20 @@ public class RemoteDevPlaypenServer {
 
         @Override
         public void close() {
+            close(null);
+        }
+
+        public void close(Runnable callback) {
+            if (!running)
+                return;
             running = false;
             client.close();
+            vertx.cancelTimer(timerId);
             if (deleteOnShutdown) {
-                deleteDeployment(who);
+                deleteDeployment(who, callback);
+            } else {
+                if (callback != null)
+                    callback.run();
             }
         }
 
@@ -163,28 +220,34 @@ public class RemoteDevPlaypenServer {
     }
 
     public void deployment(RoutingContext ctx) {
-
         String who = ctx.pathParam("who");
-        if (manager.exists(who)) {
-            ctx.response().setStatusCode(204).end();
-        } else {
-            ctx.response().setStatusCode(404).end();
-        }
+        vertx.executeBlocking(() -> {
+            if (manager.exists(who)) {
+                ctx.response().setStatusCode(204).end();
+            } else {
+                ctx.response().setStatusCode(404).end();
+            }
+            return null;
+        });
 
     }
 
     public void deleteDeployment(RoutingContext ctx) {
         String who = ctx.pathParam("who");
-        deleteDeployment(who);
-        ctx.response().setStatusCode(204).end();
+        deleteDeployment(who, () -> ctx.response().setStatusCode(204).end());
     }
 
-    private void deleteDeployment(String who) {
+    private void deleteDeployment(String who, Runnable callback) {
         Path path = Paths.get(master.config.basePlaypenDirectory).resolve(who);
         Path zip = path.resolve("project.zip");
         vertx.fileSystem().delete(zip.toString());
         vertx.executeBlocking(() -> {
-            manager.delete(who);
+            try {
+                manager.delete(who);
+            } finally {
+                if (callback != null)
+                    callback.run();
+            }
             return null;
         });
     }
@@ -296,13 +359,73 @@ public class RemoteDevPlaypenServer {
         vertx.executeBlocking(() -> {
             try {
                 manager.create(who);
-                ctx.response().setStatusCode(201).end();
+                waitForHost(ctx, who, 0);
             } catch (Exception e) {
                 log.error("Failed to create remote playpen", e);
                 ctx.response().setStatusCode(500).end();
             }
             return null;
         });
+    }
+
+    private void waitForHost(RoutingContext ctx, String who, int count) {
+        String host = manager.get(who);
+        if (host == null) {
+            if (count + 1 > 30) {
+                log.error("Timeout trying to get new remote playpen");
+                deleteDeployment(who, () -> ctx.response().setStatusCode(500).end());
+                return;
+            }
+            vertx.setTimer(2000, event -> {
+                vertx.executeBlocking(() -> {
+                    waitForHost(ctx, who, count + 1);
+                    return null;
+                });
+            });
+            return;
+        }
+        parseHost(host, (s, integer) -> {
+            HttpClientOptions options = new HttpClientOptions();
+            options.setDefaultHost(s).setDefaultPort(integer);
+            HttpClient client = vertx.createHttpClient(options);
+            isUpYet(ctx, who, client, 0);
+        });
+
+    }
+
+    private void isUpYet(RoutingContext ctx, String who, HttpClient client, int count) {
+        // just send a dummy request, 404 is fine
+        client.request(HttpMethod.GET, "/_nonsense_")
+                .onFailure(event -> {
+                    continueIsUpYet(ctx, who, client, count);
+                })
+                .onSuccess(req -> {
+                    req.send()
+                            .onSuccess(event -> {
+                                ctx.response().setStatusCode(201).end();
+                            })
+                            .onFailure(event -> {
+                                continueIsUpYet(ctx, who, client, count);
+                            });
+
+                });
+    }
+
+    private void continueIsUpYet(RoutingContext ctx, String who, HttpClient client, int count) {
+        if (count + 1 > 30) {
+            failIsUpYet(ctx, who, client);
+            return;
+        }
+        log.debugv("Remote playpen is not up yet {0}", count);
+        vertx.setTimer(2000, event -> {
+            isUpYet(ctx, who, client, count + 1);
+        });
+    }
+
+    private void failIsUpYet(RoutingContext ctx, String who, HttpClient client) {
+        log.error("Timeout trying to ping new remote playpen");
+        client.close();
+        deleteDeployment(who, () -> ctx.response().setStatusCode(500).end());
     }
 
     public void liveCode(RoutingContext ctx) {
@@ -444,7 +567,21 @@ public class RemoteDevPlaypenServer {
     }
 
     public void deleteClientConnection(RoutingContext ctx) {
-        master.deleteConnection(ctx);
+        String who = ctx.pathParam("who");
+        Playpen playpen = master.getPlaypenForDeletion(who);
+        if (playpen == null) {
+            ctx.response().setStatusCode(404).end();
+            return;
+        }
+        log.debugv("Shutdown connection {0}", who);
+        if (playpen instanceof RemoteDevPlaypen) {
+            ((RemoteDevPlaypen) playpen).close(() -> {
+                ctx.response().setStatusCode(204).end();
+            });
+        } else {
+            playpen.close();
+            ctx.response().setStatusCode(204).end();
+        }
     }
 
     private boolean isGlobal(String who) {

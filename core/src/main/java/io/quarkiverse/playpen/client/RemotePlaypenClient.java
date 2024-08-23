@@ -28,6 +28,10 @@ public class RemotePlaypenClient {
         this.configString = configString;
     }
 
+    public boolean isConnectingToExistingHost() {
+        return configString.contains("host=");
+    }
+
     public void challenge() throws IOException {
         int idx = url.indexOf(PlaypenProxyConstants.REMOTE_API_PATH);
         if (idx < 0) {
@@ -142,6 +146,25 @@ public class RemotePlaypenClient {
                 log.error("Failed to connect to remote playpen: " + responseCode);
                 return false;
             }
+        } finally {
+            try {
+                connection.disconnect();
+            } catch (Exception e) {
+
+            }
+        }
+    }
+
+    public boolean remotePlaypenExists() throws Exception {
+        String connectUrl = apiUrl(PlaypenProxyConstants.DEPLOYMENT_PATH);
+        URL httpUrl = new URL(connectUrl);
+        HttpURLConnection connection = (HttpURLConnection) httpUrl.openConnection();
+        try {
+            connection.setRequestMethod("GET");
+            setAuth(connection);
+
+            int responseCode = connection.getResponseCode();
+            return responseCode != 204;
         } finally {
             try {
                 connection.disconnect();

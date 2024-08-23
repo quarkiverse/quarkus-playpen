@@ -172,6 +172,17 @@ public class PlaypenProxy {
     public void deleteConnection(RoutingContext ctx) {
         String who = ctx.pathParam("who");
         log.debugv("Attempt delete: ", who);
+        Playpen playpen = getPlaypenForDeletion(who);
+        if (playpen == null) {
+            ctx.response().setStatusCode(404).end();
+            return;
+        }
+        log.debugv("Shutdown connection {0}", who);
+        playpen.close();
+        ctx.response().setStatusCode(204).end();
+    }
+
+    public Playpen getPlaypenForDeletion(String who) {
         Playpen playpen = null;
         if (globalSession != null && globalSession.whoami().equals(who)) {
             playpen = globalSession;
@@ -181,13 +192,7 @@ public class PlaypenProxy {
         if (playpen == null) {
             playpen = sessions.remove(who);
         }
-        if (playpen == null) {
-            ctx.response().setStatusCode(404).end();
-            return;
-        }
-        log.debugv("Shutdown connection {0}", who);
-        playpen.close();
-        ctx.response().setStatusCode(204).end();
+        return playpen;
     }
 
     public void challenge(RoutingContext ctx) {
