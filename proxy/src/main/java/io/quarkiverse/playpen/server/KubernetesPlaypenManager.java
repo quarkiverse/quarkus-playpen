@@ -72,11 +72,22 @@ public class KubernetesPlaypenManager implements RemotePlaypenManager {
     }
 
     public void create(String who, String image, String imagePullPolicy, boolean copyEnv, Map<String, String> env) {
-        if (exists(who)) {
-            log.warn("Pod already exists");
-            delete(who);
-        }
         String name = getPodName(who);
+        if (client.pods().withName(name).get() != null) {
+            log.warn("Pod already exists.  Deleting it");
+            client.pods().withName(name).delete();
+            for (int i = 0; i < 30; i++) {
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+
+                }
+                if (client.pods().withName(name).get() == null) {
+                    break;
+                }
+            }
+
+        }
         String url = "http://" + config.service + "-playpen" + config.clientPathPrefix + PlaypenProxyConstants.REMOTE_API_PATH
                 + "/" + who + "/_playpen_api" + PlaypenProxyConstants.DEPLOYMENT_ZIP_PATH;
 

@@ -9,27 +9,16 @@ import io.quarkus.runtime.annotations.ConfigRoot;
 @ConfigRoot(name = "playpen", phase = ConfigPhase.BUILD_TIME)
 public class PlaypenConfig {
     /**
-     * Connection string for quarkus playpen.
      *
-     * Uri. Add query parameters to uri for additional config parameters
-     *
-     * i.e.
-     * http://host:port?who=whoami[&optional-config=value]*
-     *
-     * "who" is who you are. This is required.
-     *
-     * By default, all requests will be pushed locally from the proxy.
-     * If you want to have a specific directed session, then use these parameters to define
-     * the session within the playpen config uri:
-     *
-     * header - http header or cookie name that identifies the session id
-     * query - query parameter name that identifies session id
-     * path - path parameter name that identifies session id use "{}" to specify where sessionid is in path i.e.
-     * /foo/bar/{}/blah
-     * session - session id value
      */
     @ConfigItem
-    public Optional<String> uri;
+    public Optional<String> local;
+
+    /**
+     *
+     */
+    @ConfigItem
+    public Optional<String> remote;
 
     /**
      * Credentials for creating a connection.
@@ -43,19 +32,11 @@ public class PlaypenConfig {
      * Execute a playpen command.
      * Only the command will execute. dev and remote-dev modes will not create a connection
      *
-     * create-remote - creates a remote container based on this project. uri and maybe credentials must be set
+     * create-remote - creates a remote container based on this project.
      * delete-remote - delete a remote container
      */
     @ConfigItem
     public Optional<String> command;
-
-    /**
-     * SESSION - creates a remote container and deletes it when exiting remote dev
-     * CREATE - creates a remote container, but does not delete it on exit
-     *
-     */
-    @ConfigItem
-    public Optional<String> remotePolicy;
 
     /**
      * If true, quarkus will not connect to local playpen on boot. Connection would have

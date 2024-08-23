@@ -19,7 +19,7 @@ import io.quarkus.vertx.http.deployment.RequireVirtualHttpBuildItem;
 public class PlaypenProcessor {
     private static final Logger log = Logger.getLogger(PlaypenProcessor.class);
 
-    @BuildStep(onlyIfNot = IsNormal.class)
+    @BuildStep(onlyIfNot = { IsNormal.class, IsAnyRemoteDev.class })
     public RequireVirtualHttpBuildItem requestVirtualHttp(PlaypenConfig config) throws BuildException {
         // always turn on virtual http in test/dev mode just in case somebody wants to manually start
         // server
@@ -33,8 +33,8 @@ public class PlaypenProcessor {
             ShutdownContextBuildItem shutdown,
             PlaypenConfig config,
             LocalPlaypenRecorder proxy) {
-        if (config.uri.isPresent() && !config.command.isPresent()) {
-            PlaypenConnectionConfig playpen = PlaypenConnectionConfig.fromUri(config.uri.get());
+        if (config.local.isPresent() && !config.command.isPresent()) {
+            PlaypenConnectionConfig playpen = PlaypenConnectionConfig.fromUri(config.local.get());
             if (playpen.error != null) {
                 throw new RuntimeException(playpen.error);
             }

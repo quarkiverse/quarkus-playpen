@@ -5,6 +5,7 @@ import java.nio.file.Path;
 import org.jboss.logging.Logger;
 
 import io.quarkiverse.playpen.client.RemotePlaypenClient;
+import io.quarkus.builder.BuildException;
 import io.quarkus.deployment.IsRemoteDevClient;
 import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.builditem.CuratedApplicationShutdownBuildItem;
@@ -22,21 +23,55 @@ public class RemotePlaypenProcessor {
     }
 
     @BuildStep
+    public ArtifactResultBuildItem check(PlaypenConfig config) throws Exception {
+        if (config.remote.isPresent() && config.local.isPresent()) {
+            throw new BuildException("Must pick either quarkus.playpen.local or .remote");
+        }
+        return null;
+    }
+
+    @BuildStep
     public ArtifactResultBuildItem command(LiveReloadConfig liveReload, PlaypenConfig config, JarBuildItem jar)
             throws Exception {
-        if (config.command.isPresent()) {
+        if (config.command.isPresent() && config.remote.isPresent()) {
             String command = config.command.get();
             if ("create-remote-manual".equalsIgnoreCase(command)) {
                 createRemote(liveReload, config, jar, true);
-            } else if ("create-remote".equalsIgnoreCase(command)) {
+            } else if ("remote-create".equalsIgnoreCase(command)) {
                 createRemote(liveReload, config, jar, false);
-            } else if ("download-remote".equalsIgnoreCase(command)) {
+            } else if ("remote-delete".equalsIgnoreCase(command)) {
+                deleteRemote(liveReload, config);
+            } else if ("remote-exists".equalsIgnoreCase(command)) {
+                remoteExists(liveReload, config);
+            } else if ("remote-get".equalsIgnoreCase(command)) {
+                remoteGet(liveReload, config);
+            } else if ("remote-download".equalsIgnoreCase(command)) {
                 downloadRemote(liveReload, config, jar);
             } else {
-                log.error("Illegal playpen command: " + command);
+                log.error("Unknown remote playpen command: " + command);
             }
         }
+        System.exit(0);
         return null;
+    }
+
+    private void remoteExists(LiveReloadConfig liveReload, PlaypenConfig config) throws Exception {
+        RemotePlaypenClient client = getRemotePlaypenClient(liveReload, config);
+        if (client.remotePlaypenExists()) {
+            log.info("Remote playpen exists");
+        } else {
+            log.info("Remote does not exists");
+        }
+    }
+
+    private void remoteGet(LiveReloadConfig liveReload, PlaypenConfig config) throws Exception {
+        RemotePlaypenClient client = getRemotePlaypenClient(liveReload, config);
+        String host = client.get();
+        if (host == null) {
+            log.info("Remote does not exists");
+        } else {
+            log.info("Remote playpen host: " + host);
+        }
     }
 
     private void downloadRemote(LiveReloadConfig liveReload, PlaypenConfig config, JarBuildItem jar) throws Exception {
@@ -52,19 +87,28 @@ public class RemotePlaypenProcessor {
         return client.create(zip, manual);
     }
 
+    private void deleteRemote(LiveReloadConfig liveReload, PlaypenConfig config)
+            throws Exception {
+
+        RemotePlaypenClient client = getRemotePlaypenClient(liveReload, config);
+        client.delete();
+    }
+
     static boolean alreadyInvoked = false;
 
     @BuildStep(onlyIf = IsRemoteDevClient.class)
     public ArtifactResultBuildItem playpen(LiveReloadConfig liveReload, PlaypenConfig config, JarBuildItem jar,
             CuratedApplicationShutdownBuildItem closeBuildItem)
             throws Exception {
-        if (!config.uri.isPresent() || config.command.isPresent()) {
+        if (!config.remote.isPresent() || config.command.isPresent()) {
             return null;
         }
         if (alreadyInvoked) {
             return null;
         }
         RemotePlaypenClient client = getRemotePlaypenClient(liveReload, config);
+        // check credentials
+        client.challenge();
 
         boolean createRemote = !client.isConnectingToExistingHost();
         if (createRemote && !createRemote(liveReload, config, jar, false)) {
@@ -98,7 +142,7 @@ public class RemotePlaypenProcessor {
 
     private static RemotePlaypenClient getRemotePlaypenClient(LiveReloadConfig liveReload, PlaypenConfig config)
             throws Exception {
-        String url = config.uri.get();
+        String url = config.remote.get();
         String queryString = "";
         if (url.contains("://")) {
             int idx = url.indexOf('?');

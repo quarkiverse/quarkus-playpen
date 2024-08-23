@@ -1,5 +1,7 @@
 package io.quarkiverse.playpen.client;
 
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -18,13 +20,13 @@ public class RemotePlaypenClient {
     protected static final Logger log = Logger.getLogger(RemotePlaypenClient.class);
 
     protected String url;
-    protected String secret;
+    protected String credentials;
     protected String configString;
     protected String authHeader;
 
-    public RemotePlaypenClient(String url, String secret, String configString) {
+    public RemotePlaypenClient(String url, String credentials, String configString) {
         this.url = url;
-        this.secret = secret;
+        this.credentials = credentials;
         this.configString = configString;
     }
 
@@ -48,9 +50,9 @@ public class RemotePlaypenClient {
                 if (wwwAuthenticate == null) {
                     throw new RuntimeException("No www-authenticate header");
                 } else if (wwwAuthenticate.startsWith("Basic")) {
-                    setBasicAuth(secret);
+                    setBasicAuth(credentials);
                 } else if (wwwAuthenticate.startsWith("Secret")) {
-                    setSecretAuth(secret);
+                    setSecretAuth(credentials);
                 }
 
             } else if (responseCode >= 400) {
@@ -67,6 +69,9 @@ public class RemotePlaypenClient {
     }
 
     public void setSecretAuth(String secret) {
+        if (secret == null) {
+            throw new RuntimeException("Credentials not set, must be username:password string");
+        }
         this.authHeader = "Secret " + secret;
     }
 
@@ -76,9 +81,12 @@ public class RemotePlaypenClient {
     }
 
     public void setBasicAuth(String creds) {
+        if (creds == null) {
+            throw new RuntimeException("Credentials not set, must be username:password string");
+        }
         int idx = creds.indexOf(':');
         if (idx < 0) {
-            throw new RuntimeException("Creds must be username:password string");
+            throw new RuntimeException("Credentials not set, must be username:password string");
         }
         setBasicAuth(creds.substring(0, idx), creds.substring(idx + 1));
     }
@@ -157,6 +165,7 @@ public class RemotePlaypenClient {
 
     public boolean remotePlaypenExists() throws Exception {
         String connectUrl = apiUrl(PlaypenProxyConstants.DEPLOYMENT_PATH);
+        connectUrl = connectUrl + "?exists";
         URL httpUrl = new URL(connectUrl);
         HttpURLConnection connection = (HttpURLConnection) httpUrl.openConnection();
         try {
@@ -165,6 +174,33 @@ public class RemotePlaypenClient {
 
             int responseCode = connection.getResponseCode();
             return responseCode != 204;
+        } finally {
+            try {
+                connection.disconnect();
+            } catch (Exception e) {
+
+            }
+        }
+    }
+
+    public String get() throws Exception {
+        String connectUrl = apiUrl(PlaypenProxyConstants.DEPLOYMENT_PATH);
+        URL httpUrl = new URL(connectUrl);
+        HttpURLConnection connection = (HttpURLConnection) httpUrl.openConnection();
+        try {
+            connection.setRequestMethod("GET");
+            setAuth(connection);
+
+            int responseCode = connection.getResponseCode();
+            if (responseCode == 200) {
+                BufferedInputStream bis = new BufferedInputStream(connection.getInputStream());
+                ByteArrayOutputStream buf = new ByteArrayOutputStream();
+                for (int result = bis.read(); result != -1; result = bis.read()) {
+                    buf.write((byte) result);
+                }
+                return buf.toString("UTF-8");
+            }
+            return null;
         } finally {
             try {
                 connection.disconnect();

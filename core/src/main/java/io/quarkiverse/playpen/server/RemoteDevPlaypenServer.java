@@ -221,15 +221,30 @@ public class RemoteDevPlaypenServer {
 
     public void deployment(RoutingContext ctx) {
         String who = ctx.pathParam("who");
-        vertx.executeBlocking(() -> {
-            if (manager.exists(who)) {
-                ctx.response().setStatusCode(204).end();
-            } else {
-                ctx.response().setStatusCode(404).end();
-            }
-            return null;
-        });
+        boolean exists = !ctx.queryParam("exists").isEmpty();
+        if (exists) {
+            vertx.executeBlocking(() -> {
+                String host = manager.get(who);
+                if (host != null) {
+                    ctx.response().setStatusCode(204).end();
+                } else {
+                    ctx.response().setStatusCode(404).end();
+                }
+                return null;
+            });
 
+        } else {
+            vertx.executeBlocking(() -> {
+                String host = manager.get(who);
+                if (host != null) {
+                    ctx.response().setStatusCode(200).putHeader("Content-Type", "text/plain").end(host);
+                } else {
+                    ctx.response().setStatusCode(404).end();
+                }
+                return null;
+            });
+
+        }
     }
 
     public void deleteDeployment(RoutingContext ctx) {

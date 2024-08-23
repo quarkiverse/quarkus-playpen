@@ -34,7 +34,7 @@ public class PlaypenServerSessionTest {
     public static final int CLIENT_API_PORT = 9093;
 
     private static final String APP_PROPS = "" +
-            "quarkus.playpen.uri=http://localhost:9093/local/john?path=/users/john&query=user=john\n"
+            "quarkus.playpen.local=http://localhost:9093/local/john?path=/users/john&query=user=john\n"
             + "quarkus.log.category.\"io.quarkiverse.playpen\".level=DEBUG\n"
             + "quarkus.playpen.manual-start=true\n";
 
