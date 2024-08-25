@@ -469,6 +469,7 @@ public class RemoteDevPlaypenServer {
         List<PlaypenMatcher> matchers = new ArrayList<>();
         boolean isGlobal = false;
         String host = null;
+        boolean cleanup = false;
         for (Map.Entry<String, String> entry : ctx.queryParams()) {
             String key = entry.getKey();
             String value = entry.getValue();
@@ -501,6 +502,8 @@ public class RemoteDevPlaypenServer {
                 isGlobal = true;
             } else if ("host".equals(key)) {
                 host = value;
+            } else if ("cleanup".equals(key)) {
+                cleanup = Boolean.parseBoolean(value);
             }
         }
         log.debugv("Is global session: {0}", isGlobal);
@@ -543,6 +546,7 @@ public class RemoteDevPlaypenServer {
             }
         }
         boolean finalIsGlobal = isGlobal;
+        boolean finalCleanup = cleanup;
         String finalHost = host;
         log.debugv("Creating new session: {0} {1}", isGlobal, finalHost);
         master.auth.authenticate(ctx, () -> {
@@ -555,7 +559,7 @@ public class RemoteDevPlaypenServer {
                             log.warnv("Remote playpen {0} does not exist", who);
                             ctx.response().setStatusCode(404).end();
                         }
-                        setupSession(ctx, theHost, who, matchers, finalIsGlobal, true);
+                        setupSession(ctx, theHost, who, matchers, finalIsGlobal, finalCleanup);
                     } catch (Exception e) {
                         log.error("Failed to setup session", e);
                         ctx.response().setStatusCode(500).end();

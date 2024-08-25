@@ -59,6 +59,8 @@ public class RemotePlaypenClient {
                 throw new RuntimeException("Failed to challenge: " + responseCode);
             }
 
+        } catch (Exception ex) {
+            log.error("Failure sending request " + ex.getMessage());
         } finally {
             try {
                 connection.disconnect();
@@ -97,9 +99,20 @@ public class RemotePlaypenClient {
         }
     }
 
-    public boolean connect() throws Exception {
+    public boolean connect(boolean cleanupRemote) throws Exception {
         String connectUrl = apiUrl("connect");
-        connectUrl = connectUrl + "?" + configString;
+        if (configString.isBlank()) {
+
+        } else {
+            connectUrl = connectUrl + "?" + configString;
+        }
+        if (!configString.contains("cleanup=")) {
+            if (connectUrl.indexOf('?') == -1) {
+                connectUrl = connectUrl + "?" + "cleanup=" + cleanupRemote;
+            } else {
+                connectUrl = connectUrl + "&cleanup=" + cleanupRemote;
+            }
+        }
 
         log.info("Sending connect " + connectUrl);
         URL httpUrl = new URL(connectUrl);
@@ -113,8 +126,9 @@ public class RemotePlaypenClient {
                 return true;
             } else {
                 log.error("Failed to connect to remote playpen: " + responseCode);
-                return false;
             }
+        } catch (Exception ex) {
+            log.error("Failure sending request " + ex.getMessage());
         } finally {
             try {
                 connection.disconnect();
@@ -122,6 +136,7 @@ public class RemotePlaypenClient {
 
             }
         }
+        return false;
     }
 
     private String apiUrl(String action) {
@@ -152,8 +167,9 @@ public class RemotePlaypenClient {
                 return true;
             } else {
                 log.error("Failed to connect to remote playpen: " + responseCode);
-                return false;
             }
+        } catch (Exception ex) {
+            log.error("Failure sending request " + ex.getMessage());
         } finally {
             try {
                 connection.disconnect();
@@ -161,11 +177,13 @@ public class RemotePlaypenClient {
 
             }
         }
+        return false;
     }
 
     public boolean remotePlaypenExists() throws Exception {
         String connectUrl = apiUrl(PlaypenProxyConstants.DEPLOYMENT_PATH);
         connectUrl = connectUrl + "?exists";
+        log.info("Ask if remote playpen exists: " + connectUrl);
         URL httpUrl = new URL(connectUrl);
         HttpURLConnection connection = (HttpURLConnection) httpUrl.openConnection();
         try {
@@ -173,7 +191,13 @@ public class RemotePlaypenClient {
             setAuth(connection);
 
             int responseCode = connection.getResponseCode();
-            return responseCode != 204;
+            if (responseCode == 204) {
+                return true;
+            } else if (responseCode != 404) {
+                log.error("Response Failure: " + responseCode);
+            }
+        } catch (Exception ex) {
+            log.error("Failure sending request " + ex.getMessage());
         } finally {
             try {
                 connection.disconnect();
@@ -181,6 +205,7 @@ public class RemotePlaypenClient {
 
             }
         }
+        return false;
     }
 
     public String get() throws Exception {
@@ -199,8 +224,12 @@ public class RemotePlaypenClient {
                     buf.write((byte) result);
                 }
                 return buf.toString("UTF-8");
+            } else if (responseCode != 404) {
+                log.error("Response Failure: " + responseCode);
             }
             return null;
+        } catch (Exception ex) {
+            log.error("Failure sending request " + ex.getMessage());
         } finally {
             try {
                 connection.disconnect();
@@ -208,6 +237,7 @@ public class RemotePlaypenClient {
 
             }
         }
+        return null;
     }
 
     /**
@@ -240,6 +270,8 @@ public class RemotePlaypenClient {
                 log.error("Failed to connect to remote playpen: " + responseCode);
                 return false;
             }
+        } catch (Exception ex) {
+            log.error("Failed to execute: " + ex.getMessage());
         } finally {
             try {
                 connection.disconnect();
@@ -247,6 +279,7 @@ public class RemotePlaypenClient {
 
             }
         }
+        return false;
     }
 
     public boolean create(Path zip, boolean manual) throws Exception {
@@ -275,7 +308,7 @@ public class RemotePlaypenClient {
                 return false;
             }
         } catch (Exception ex) {
-            log.error("Failure sending request");
+            log.error("Failure sending request " + ex.getMessage());
             return false;
         } finally {
             try {
@@ -302,6 +335,9 @@ public class RemotePlaypenClient {
                 log.error("Failed to delete remote container: " + responseCode);
                 return false;
             }
+        } catch (Exception ex) {
+            log.error("Failure sending request " + ex.getMessage());
+            return false;
         } finally {
             try {
                 connection.disconnect();

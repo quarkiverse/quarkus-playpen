@@ -142,5 +142,12 @@ public class KubernetesPlaypenManager implements RemotePlaypenManager {
         } catch (Exception e) {
             log.error("Failed to delete", e);
         }
+        for (int i = 0; i < 30 && client.pods().withName(podName).get() != null; i++) {
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                break;
+            }
+        }
     }
 }

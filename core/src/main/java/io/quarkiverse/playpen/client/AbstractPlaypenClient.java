@@ -386,7 +386,7 @@ public abstract class AbstractPlaypenClient {
 
             }
             try {
-                latch.await(1, TimeUnit.SECONDS);
+                latch.await(1, TimeUnit.MINUTES);
                 int phase = workerShutdown.arriveAndDeregister();
                 phase = workerShutdown.awaitAdvanceInterruptibly(1, pollTimeoutMillis * 2, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | TimeoutException ignored) {
