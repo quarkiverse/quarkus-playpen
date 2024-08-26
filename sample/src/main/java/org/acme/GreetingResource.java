@@ -13,7 +13,9 @@ import jakarta.ws.rs.core.UriBuilder;
 import jakarta.ws.rs.core.UriInfo;
 
 import java.net.URI;
+import java.text.SimpleDateFormat;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 
 @Path("/hello")
@@ -21,6 +23,10 @@ public class GreetingResource {
     @GET
     @Produces(MediaType.TEXT_HTML)
     public String hello(@QueryParam("user") @DefaultValue("developer") String user) {
-        return "<h1>Hello " + user + " " + LocalTime.now() + "</h1>";
+        String greeting = System.getenv("GREETING_ENV");
+        String time = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+        if (greeting == null) greeting = "Greetings";
+        String message = "<h1>" + greeting + " " + user + " " + time + "</h1>";
+        return message;
     }
 }

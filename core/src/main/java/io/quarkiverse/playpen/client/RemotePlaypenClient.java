@@ -40,6 +40,7 @@ public class RemotePlaypenClient {
             throw new RuntimeException("Illegal Url: " + url);
         }
         String challenge = url.substring(0, idx) + "/challenge";
+        log.debug("Sending challenge " + challenge);
         URL httpUrl = new URL(challenge);
         HttpURLConnection connection = (HttpURLConnection) httpUrl.openConnection();
         try {
@@ -72,7 +73,7 @@ public class RemotePlaypenClient {
 
     public void setSecretAuth(String secret) {
         if (secret == null) {
-            throw new RuntimeException("Credentials not set, must be username:password string");
+            throw new RuntimeException("Credentials not set, must specify secret string");
         }
         this.authHeader = "Secret " + secret;
     }
@@ -114,7 +115,7 @@ public class RemotePlaypenClient {
             }
         }
 
-        log.info("Sending connect " + connectUrl);
+        log.info("Connect to remote playpen " + connectUrl);
         URL httpUrl = new URL(connectUrl);
         HttpURLConnection connection = (HttpURLConnection) httpUrl.openConnection();
         try {
@@ -155,7 +156,7 @@ public class RemotePlaypenClient {
     public boolean disconnect() throws Exception {
         String connectUrl = apiUrl("connect");
 
-        log.info("Sending disconnect " + connectUrl);
+        log.info("Disconnecting from remote playpen " + connectUrl);
         URL httpUrl = new URL(connectUrl);
         HttpURLConnection connection = (HttpURLConnection) httpUrl.openConnection();
         try {
@@ -183,7 +184,7 @@ public class RemotePlaypenClient {
     public boolean remotePlaypenExists() throws Exception {
         String connectUrl = apiUrl(PlaypenProxyConstants.DEPLOYMENT_PATH);
         connectUrl = connectUrl + "?exists";
-        log.info("Ask if remote playpen exists: " + connectUrl);
+        log.debug("Ask if remote playpen exists: " + connectUrl);
         URL httpUrl = new URL(connectUrl);
         HttpURLConnection connection = (HttpURLConnection) httpUrl.openConnection();
         try {
@@ -288,7 +289,7 @@ public class RemotePlaypenClient {
             connectUrl = connectUrl + "?manual=true";
         }
 
-        log.info("Sending deployment " + connectUrl);
+        log.info("Creating remote playpen container " + connectUrl);
         URL httpUrl = new URL(connectUrl);
         HttpURLConnection connection = (HttpURLConnection) httpUrl.openConnection();
         try {
@@ -321,7 +322,7 @@ public class RemotePlaypenClient {
 
     public boolean delete() throws Exception {
         String connectUrl = apiUrl(PlaypenProxyConstants.DEPLOYMENT_PATH);
-        log.info("Sending delete " + connectUrl);
+        log.info("Delete remote playpen container " + connectUrl);
         URL httpUrl = new URL(connectUrl);
         HttpURLConnection connection = (HttpURLConnection) httpUrl.openConnection();
         try {

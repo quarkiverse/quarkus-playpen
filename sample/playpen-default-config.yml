@@ -4,6 +4,5 @@ metadata:
   name: global
   namespace: quarkus
 spec:
-  exposePolicy: secureRoute
   authType: none
   logLevel: DEBUG

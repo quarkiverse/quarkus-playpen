@@ -73,6 +73,7 @@ rules:
       - secrets
       - serviceaccounts
       - rolebindings
+      - pods
     verbs:
       - get
       - list

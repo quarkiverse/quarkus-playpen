@@ -1,6 +1,7 @@
 package io.quarkiverse.playpen.deployment;
 
 import java.nio.file.Path;
+import java.util.Set;
 
 import org.jboss.logging.Logger;
 
@@ -97,6 +98,10 @@ public class RemotePlaypenProcessor {
             log.info("Remote playpen already exists, delete it first if you want to create a new one");
             return false;
         }
+        return createRemote(jar, manual, client);
+    }
+
+    private boolean createRemote(JarBuildItem jar, boolean manual, RemotePlaypenClient client) throws Exception {
         Path zip = zip(jar);
         return client.create(zip, manual);
     }
@@ -134,7 +139,7 @@ public class RemotePlaypenProcessor {
             if (client.remotePlaypenExists()) {
                 log.info("Remote playpen already exists, not creating for session.");
             } else {
-                if (createRemote(liveReload, config, jar, false)) {
+                if (createRemote(jar, false, client)) {
                     cleanupRemote = true;
                 } else {
                     return null;
@@ -149,23 +154,57 @@ public class RemotePlaypenProcessor {
         }
         alreadyInvoked = true;
         boolean finalCleanup = cleanupRemote;
-        closeBuildItem.addCloseTask(() -> {
-            try {
-                client.disconnect();
-                if (finalCleanup) {
-                    log.info("Waiting for remote playpen cleanup...");
-                    for (int i = 0; i < 30; i++) {
-                        if (client.remotePlaypenExists()) {
-                            break;
-                        }
-                        Thread.sleep(2000);
-                    }
+        //  Use a regular shutdown hook and make sure it runs after remove dev client is done
+        //  otherwise developer will see stack traces
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            log.info("Cleaning up remote playpen, this may take awhile...");
+            long wait = 10;
+            for (int i = 0; i < 30 && isThreadAlive("Remote dev client thread"); i++) {
+                try {
+                    if (wait < 1000)
+                        wait *= 10;
+                    Thread.sleep(wait);
+                } catch (InterruptedException e) {
+
                 }
-            } catch (Exception e) {
-                log.error(e);
             }
-        }, true);
+            callDisconnect(client, finalCleanup);
+        }));
+        /*
+         * closeBuildItem.addCloseTask(() -> {
+         * callDisconnect(client, finalCleanup);
+         * }, true);
+         *
+         */
         return null;
+    }
+
+    private boolean isThreadAlive(String search) {
+        Set<Thread> threads = Thread.getAllStackTraces().keySet();
+        for (Thread thread : threads) {
+            if (thread.getName().contains(search) && thread.isAlive()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void callDisconnect(RemotePlaypenClient client, boolean finalCleanup) {
+        try {
+            client.disconnect();
+            if (finalCleanup) {
+                boolean first = true;
+                for (int i = 0; i < 30 && client.remotePlaypenExists(); i++) {
+                    if (first) {
+                        first = false;
+                        log.info("Waiting for remote playpen cleanup...");
+                    }
+                    Thread.sleep(2000);
+                }
+            }
+        } catch (Exception e) {
+            log.error(e);
+        }
     }
 
     private static RemotePlaypenClient getRemotePlaypenClient(LiveReloadConfig liveReload, PlaypenConfig config)
