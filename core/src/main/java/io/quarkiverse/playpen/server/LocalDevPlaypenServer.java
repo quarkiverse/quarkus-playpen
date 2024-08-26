@@ -96,6 +96,10 @@ public class LocalDevPlaypenServer {
                 }
                 pollResponse.headers().add(PlaypenProxyConstants.HEADER_FORWARD_PREFIX + key, val);
             });
+            if (!proxiedRequest.headers().contains(PlaypenProxyConstants.SESSION_HEADER)) {
+                pollResponse.headers().add(PlaypenProxyConstants.HEADER_FORWARD_PREFIX + PlaypenProxyConstants.SESSION_HEADER,
+                        session.who);
+            }
             String requestId = session.queueResponse(proxiedCtx);
             pollResponse.putHeader(PlaypenProxyConstants.REQUEST_ID_HEADER, requestId);
             String responsePath = clientApiPath + "/" + session.who + "/push/" + requestId;

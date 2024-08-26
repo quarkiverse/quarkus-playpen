@@ -12,7 +12,7 @@ public class MockRemotePlaypenManager implements RemotePlaypenManager {
     }
 
     @Override
-    public void create(String who) {
+    public void create(String who, boolean copy) {
 
     }
 

@@ -149,6 +149,11 @@ public class RemoteDevPlaypenServer {
                 String tmp = uri.replace(liveReloadPrefix, "");
                 log.debugv("livecode change {0} to {1}", uri, tmp);
                 context.request().setURI(tmp);
+            } else {
+                // add session header to request if it is not already there
+                if (!context.request().headers().contains(PlaypenProxyConstants.SESSION_HEADER)) {
+                    context.request().headers().add(PlaypenProxyConstants.SESSION_HEADER, who);
+                }
             }
             return context.sendRequest();
         }
@@ -308,6 +313,12 @@ public class RemoteDevPlaypenServer {
 
     public void createDeployment(RoutingContext ctx) {
         String who = ctx.pathParam("who");
+        List<String> copy = ctx.queryParam("copy-env");
+        boolean copyEnv = true;
+        if (!copy.isEmpty()) {
+            copyEnv = Boolean.parseBoolean(copy.get(0));
+        }
+        boolean finalCopyEnv = copyEnv;
         boolean manualPod = !ctx.queryParam("manual").isEmpty();
         log.debugv("createDeployment {0} manual = ", who, manualPod);
         /*
@@ -360,7 +371,7 @@ public class RemoteDevPlaypenServer {
                                         if (manualPod) {
                                             ctx.response().setStatusCode(201).end();
                                         } else {
-                                            createQuarkusDeployment(ctx, who);
+                                            createQuarkusDeployment(ctx, who, finalCopyEnv);
                                         }
                                     }
                                 });
@@ -369,11 +380,11 @@ public class RemoteDevPlaypenServer {
                 });
     }
 
-    private void createQuarkusDeployment(RoutingContext ctx, String who) {
+    private void createQuarkusDeployment(RoutingContext ctx, String who, boolean copyEnv) {
         log.debugv("Create quarkus deployment {0}", who);
         vertx.executeBlocking(() -> {
             try {
-                manager.create(who);
+                manager.create(who, copyEnv);
                 waitForHost(ctx, who, 0);
             } catch (Exception e) {
                 log.error("Failed to create remote playpen", e);

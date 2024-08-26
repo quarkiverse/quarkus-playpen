@@ -38,15 +38,15 @@ public class KubernetesPlaypenManager implements RemotePlaypenManager {
     }
 
     @Override
-    public void create(String who) {
-        createQuarkus(who);
+    public void create(String who, boolean copyEnv) {
+        createQuarkus(who, copyEnv);
 
     }
 
-    public void createQuarkus(String who) {
+    public void createQuarkus(String who, boolean copyEnv) {
         Map<String, String> env = Map.of("QUARKUS_LAUNCH_DEVMODE", "true");
 
-        create(who, config.remotePlaypenImage, config.remotePlaypenImagePolicy, true, env);
+        create(who, config.remotePlaypenImage, config.remotePlaypenImagePolicy, copyEnv, env);
     }
 
     static ObjectMeta createMetadata(String name) {

@@ -11,7 +11,7 @@ public interface RemotePlaypenManager {
 
     boolean exists(String who);
 
-    void create(String who);
+    void create(String who, boolean copyEnv);
 
     void delete(String who);
 }
