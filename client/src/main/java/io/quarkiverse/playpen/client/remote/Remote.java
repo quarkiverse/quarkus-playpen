@@ -2,11 +2,10 @@ package io.quarkiverse.playpen.client.remote;
 
 import java.util.concurrent.Callable;
 
-import io.quarkiverse.playpen.client.local.Connect;
 import io.quarkiverse.playpen.client.util.BaseCommand;
 import picocli.CommandLine;
 
-@CommandLine.Command(name = "local", subcommands = Connect.class)
+@CommandLine.Command(name = "remote", subcommands = Connect.class)
 public class Remote extends BaseCommand implements Callable<Integer> {
 
     @Override

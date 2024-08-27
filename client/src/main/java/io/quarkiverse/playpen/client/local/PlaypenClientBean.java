@@ -2,6 +2,7 @@ package io.quarkiverse.playpen.client.local;
 
 import java.util.concurrent.CountDownLatch;
 
+import io.quarkiverse.playpen.client.OnShutdown;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -17,7 +18,9 @@ public class PlaypenClientBean {
     @Inject
     Vertx vertx;
 
-    CountDownLatch running = new CountDownLatch(1);
+    @Inject
+    OnShutdown shutdown;
+
 
     public boolean start(int localPort, PlaypenConnectionConfig config) throws Exception {
         client = PlaypenClient.create(vertx)
@@ -28,17 +31,18 @@ public class PlaypenClientBean {
         if (!client.start()) {
             return false;
         }
-        running = new CountDownLatch(1);
-        running.await();
+        shutdown.await();
         return true;
     }
 
     @Shutdown
     public void stop() {
-        running.countDown();
-        if (client != null) {
-            client.shutdown();
+        try {
+            if (client != null) {
+                client.shutdown();
+            }
+        } finally {
+            client = null;
         }
-        client = null;
     }
 }

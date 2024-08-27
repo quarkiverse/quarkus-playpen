@@ -3,11 +3,13 @@ package io.quarkiverse.playpen.client.remote;
 import static picocli.CommandLine.Help.Visibility.NEVER;
 
 import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
 
+import jakarta.inject.Inject;
+
+import io.quarkiverse.playpen.client.OnShutdown;
 import io.quarkiverse.playpen.client.RemotePlaypenClient;
 import io.quarkiverse.playpen.client.util.BaseCommand;
-import io.quarkus.runtime.Shutdown;
+import io.quarkiverse.playpen.client.util.MessageIcons;
 import picocli.CommandLine;
 
 @CommandLine.Command(name = "connect")
@@ -15,17 +17,17 @@ public class Connect extends BaseCommand implements Callable<Integer> {
 
     @CommandLine.Option(names = { "-c",
             "--credentials" }, defaultValue = "", description = "user:password or secret", showDefaultValue = NEVER)
-    private String credentials;
+    protected String credentials;
 
-    @CommandLine.Option(names = { "-h",
+    @CommandLine.Option(names = {
             "--host" }, required = true, description = "host[:port] of remote playpen", showDefaultValue = NEVER)
-    private String host;
+    protected String host;
 
     @CommandLine.Parameters(index = "0", description = "URI of playpen server")
-    private String uri;
+    protected String uri;
 
-    RemotePlaypenClient client = null;
-    CountDownLatch latch = null;
+    @Inject
+    protected OnShutdown shutdown;
 
     @Override
     public Integer call() throws Exception {
@@ -38,22 +40,23 @@ public class Connect extends BaseCommand implements Callable<Integer> {
         }
         configString = configString + "host=" + host;
 
-        client = new RemotePlaypenClient(url, credentials, configString);
+        RemotePlaypenClient client = new RemotePlaypenClient(url, credentials, configString);
         client.challenge();
         if (client.connect(false)) {
-            latch = new CountDownLatch(1);
-            latch.await();
+            output.info("Connected " + MessageIcons.SUCCESS_ICON);
+            shutdown.await(() -> {
+                try {
+                    output.info("");
+                    output.info("Disconnecting...");
+                    client.disconnect();
+                    output.info("Disconnect success " + MessageIcons.SUCCESS_ICON);
+                } catch (Exception e) {
+                    output.error(e.getMessage());
+                }
+            });
             return CommandLine.ExitCode.OK;
         } else {
             return CommandLine.ExitCode.SOFTWARE;
         }
-    }
-
-    @Shutdown
-    public void shutdown() throws Exception {
-        if (client != null && latch != null) {
-            client.disconnect();
-        }
-
     }
 }

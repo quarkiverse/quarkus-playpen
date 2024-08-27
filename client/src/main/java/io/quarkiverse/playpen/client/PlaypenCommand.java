@@ -3,6 +3,7 @@ package io.quarkiverse.playpen.client;
 import java.util.concurrent.Callable;
 
 import io.quarkiverse.playpen.client.local.Local;
+import io.quarkiverse.playpen.client.remote.Remote;
 import io.quarkiverse.playpen.client.util.BaseCommand;
 import io.quarkiverse.playpen.client.util.OutputOptionMixin;
 import io.quarkus.picocli.runtime.annotations.TopCommand;
