@@ -20,13 +20,12 @@ public class OnShutdown {
 
             }
         }
-
     }
 
     public void await(Runnable runnable) {
         tasks.add(runnable);
         await();
-     }
+    }
 
     @Shutdown
     public void shutdown() {

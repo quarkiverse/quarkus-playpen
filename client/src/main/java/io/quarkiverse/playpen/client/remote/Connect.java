@@ -44,6 +44,7 @@ public class Connect extends BaseCommand implements Callable<Integer> {
         client.challenge();
         if (client.connect(false)) {
             output.info("Connected " + MessageIcons.SUCCESS_ICON);
+            output.info("Hit @|bold <Control-C>|@ to exit and disconnect from playpen server");
             shutdown.await(() -> {
                 try {
                     output.info("");
