@@ -11,13 +11,12 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Base64;
 
-import org.jboss.logging.Logger;
-
 import io.quarkiverse.playpen.server.PlaypenProxyConstants;
 import io.quarkiverse.playpen.server.auth.PlaypenAuth;
+import io.quarkiverse.playpen.utils.PlaypenLogger;
 
 public class RemotePlaypenClient {
-    protected static final Logger log = Logger.getLogger(RemotePlaypenClient.class);
+    protected static final PlaypenLogger log = PlaypenLogger.getLogger(RemotePlaypenClient.class);
 
     protected String url;
     protected String credentials;
@@ -36,7 +35,7 @@ public class RemotePlaypenClient {
         return configString.contains("host=");
     }
 
-    public void challenge() throws IOException {
+    public boolean challenge() throws IOException {
         int idx = url.indexOf(PlaypenProxyConstants.REMOTE_API_PATH);
         if (idx < 0) {
             throw new RuntimeException("Illegal Url: " + url);
@@ -59,9 +58,10 @@ public class RemotePlaypenClient {
                 }
 
             } else if (responseCode >= 400) {
-                throw new RuntimeException("Failed to challenge: " + responseCode);
+                log.error("Failed to challenge: " + responseCode);
+                return false;
             }
-
+            return true;
         } catch (Exception ex) {
             log.error("Failure sending request " + ex.getMessage());
         } finally {
@@ -71,6 +71,7 @@ public class RemotePlaypenClient {
 
             }
         }
+        return false;
     }
 
     public void setSecretAuth(String secret) {
@@ -117,7 +118,7 @@ public class RemotePlaypenClient {
             }
         }
 
-        log.info("Connect to remote playpen " + connectUrl);
+        log.debug("Connecting to " + connectUrl);
         URL httpUrl = new URL(connectUrl);
         HttpURLConnection connection = (HttpURLConnection) httpUrl.openConnection();
         try {
@@ -125,7 +126,7 @@ public class RemotePlaypenClient {
             setAuth(connection);
             int responseCode = connection.getResponseCode();
             if (responseCode == 204) {
-                log.info("Successfully set up playpen session.");
+                log.debug("Successfully set up playpen session.");
                 return true;
             } else {
                 log.error("Failed to connect to remote playpen: " + responseCode);
@@ -158,7 +159,7 @@ public class RemotePlaypenClient {
     public boolean disconnect() throws Exception {
         String connectUrl = apiUrl("connect");
 
-        log.info("Disconnecting from remote playpen " + connectUrl);
+        log.debug("Disconnecting from remote playpen " + connectUrl);
         URL httpUrl = new URL(connectUrl);
         HttpURLConnection connection = (HttpURLConnection) httpUrl.openConnection();
         try {
@@ -166,10 +167,10 @@ public class RemotePlaypenClient {
             setAuth(connection);
             int responseCode = connection.getResponseCode();
             if (responseCode == 204) {
-                log.info("Playpen disconnect succeeded.");
+                log.debug("Playpen disconnect succeeded.");
                 return true;
             } else {
-                log.error("Failed to connect to remote playpen: " + responseCode);
+                log.error("Failed to disconnect from remote playpen: " + responseCode);
             }
         } catch (Exception ex) {
             log.error("Failure sending request " + ex.getMessage());
@@ -253,7 +254,7 @@ public class RemotePlaypenClient {
     public boolean download(Path zip) throws Exception {
         String connectUrl = apiUrl(PlaypenProxyConstants.DEPLOYMENT_ZIP_PATH);
 
-        log.info("Getting deployment " + connectUrl);
+        log.debug("Getting deployment " + connectUrl);
         URL httpUrl = new URL(connectUrl);
         HttpURLConnection connection = (HttpURLConnection) httpUrl.openConnection();
         try {
@@ -262,7 +263,7 @@ public class RemotePlaypenClient {
 
             int responseCode = connection.getResponseCode();
             if (responseCode == 200) {
-                log.info("Got deployment, saving to disk");
+                log.debug("Got deployment, saving to disk");
                 Files.copy(connection.getInputStream(), zip, StandardCopyOption.REPLACE_EXISTING);
                 try {
                     connection.getInputStream().close();
@@ -291,7 +292,7 @@ public class RemotePlaypenClient {
             connectUrl = connectUrl + "?manual=true";
         }
 
-        log.info("Creating remote playpen container " + connectUrl);
+        log.debug("Creating remote playpen container " + connectUrl);
         URL httpUrl = new URL(connectUrl);
         HttpURLConnection connection = (HttpURLConnection) httpUrl.openConnection();
         try {
@@ -304,7 +305,7 @@ public class RemotePlaypenClient {
 
             int responseCode = connection.getResponseCode();
             if (responseCode == 201) {
-                log.info("Successfully set up remote container.");
+                log.debug("Successfully set up remote container.");
                 return true;
             } else {
                 log.error("Failed to create to remote container: " + responseCode);
@@ -324,7 +325,7 @@ public class RemotePlaypenClient {
 
     public boolean delete() throws Exception {
         String connectUrl = apiUrl(PlaypenProxyConstants.DEPLOYMENT_PATH);
-        log.info("Delete remote playpen container " + connectUrl);
+        log.debug("Delete remote playpen container " + connectUrl);
         URL httpUrl = new URL(connectUrl);
         HttpURLConnection connection = (HttpURLConnection) httpUrl.openConnection();
         try {
@@ -332,8 +333,10 @@ public class RemotePlaypenClient {
             setAuth(connection);
             int responseCode = connection.getResponseCode();
             if (responseCode == 204) {
-                log.info("Successfully deleted remote container.");
+                log.debug("Successfully deleted remote container.");
                 return true;
+            } else if (responseCode == 404) {
+                log.error("Remote container does not exist");
             } else {
                 log.error("Failed to delete remote container: " + responseCode);
                 return false;
@@ -348,5 +351,6 @@ public class RemotePlaypenClient {
 
             }
         }
+        return false;
     }
 }

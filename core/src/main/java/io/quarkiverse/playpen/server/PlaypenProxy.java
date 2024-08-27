@@ -187,10 +187,13 @@ public class PlaypenProxy {
         if (globalSession != null && globalSession.whoami().equals(who)) {
             playpen = globalSession;
             globalSession = null;
-            log.debug("Deleting globalSession");
+            log.debugv("deleting globalSession {0}", who);
         }
         if (playpen == null) {
             playpen = sessions.remove(who);
+            if (playpen != null) {
+                log.debugv("deleting session {0}", who);
+            }
         }
         return playpen;
     }

@@ -9,5 +9,5 @@ public class BaseCommand {
     @CommandLine.Spec
     protected CommandLine.Model.CommandSpec spec;
     @CommandLine.Mixin(name = "output")
-    protected OutputOptionMixin output;
+    protected OutputMixin output;
 }

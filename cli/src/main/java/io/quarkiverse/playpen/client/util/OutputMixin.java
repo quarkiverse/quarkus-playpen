@@ -1,18 +1,18 @@
 package io.quarkiverse.playpen.client.util;
 
-import static io.quarkiverse.playpen.client.util.MessageIcons.ERROR_ICON;
-import static io.quarkiverse.playpen.client.util.MessageIcons.WARN_ICON;
+import static io.quarkiverse.playpen.utils.MessageIcons.ERROR_ICON;
+import static io.quarkiverse.playpen.utils.MessageIcons.WARN_ICON;
 
 import java.io.PrintWriter;
-import java.util.List;
+import java.text.MessageFormat;
 
 import io.quarkiverse.playpen.client.PlaypenCommand;
+import io.quarkiverse.playpen.utils.PlaypenLogger;
 import picocli.CommandLine;
 import picocli.CommandLine.Help.ColorScheme;
 import picocli.CommandLine.Model.CommandSpec;
 
-public class OutputOptionMixin implements MessageWriter {
-
+public class OutputMixin implements PlaypenLogger {
     static final boolean picocliDebugEnabled = "DEBUG".equalsIgnoreCase(System.getProperty("picocli.trace"));
 
     boolean verbose = false;
@@ -55,7 +55,7 @@ public class OutputOptionMixin implements MessageWriter {
         return showErrors || picocliDebugEnabled;
     }
 
-    private static OutputOptionMixin getOutput(CommandSpec commandSpec) {
+    private static OutputMixin getOutput(CommandSpec commandSpec) {
         return ((PlaypenCommand) commandSpec.root().userObject()).getOutput();
     }
 
@@ -76,30 +76,63 @@ public class OutputOptionMixin implements MessageWriter {
         return CommandLine.Help.Ansi.AUTO.enabled();
     }
 
-    public void printText(String... text) {
-        for (String line : text) {
-            out().println(colorScheme().ansi().new Text(line, colorScheme()));
-        }
-    }
-
-    public void printErrorText(String[] text) {
-        for (String line : text) {
-            err().println(colorScheme().errorText(line));
-        }
-    }
-
-    public void printStackTrace(Exception ex) {
+    private void printStackTrace(Throwable ex) {
         if (isShowErrors()) {
             err().println(colorScheme().stackTraceText(ex));
         }
+    }
+
+    @Override
+    public String toString() {
+        return "OutputOptions [showErrors=" + showErrors
+                + ", verbose=" + getVerbose() + "]";
     }
 
     public void info(String msg) {
         out().println(colorScheme().ansi().new Text(msg, colorScheme()));
     }
 
+    @Override
+    public void infov(String msg, Object... params) {
+        info(MessageFormat.format(msg, params));
+    }
+
+    @Override
+    public void infof(String msg, Object... params) {
+        info(String.format(msg, params));
+
+    }
+
     public void error(String msg) {
         out().println(colorScheme().errorText(ERROR_ICON + " " + msg));
+    }
+
+    @Override
+    public void error(String msg, Throwable cause) {
+        error(msg);
+        printStackTrace(cause);
+    }
+
+    @Override
+    public void errorv(String msg, Object... params) {
+        error(MessageFormat.format(msg, params));
+    }
+
+    @Override
+    public void errorv(Throwable cause, String msg, Object... params) {
+        error(MessageFormat.format(msg, params));
+        printStackTrace(cause);
+    }
+
+    @Override
+    public void errorf(String msg, Object... params) {
+        error(String.format(msg, params));
+    }
+
+    @Override
+    public void errorf(Throwable cause, String msg, Object... params) {
+        error(String.format(msg, params));
+        printStackTrace(cause);
     }
 
     public boolean isDebugEnabled() {
@@ -113,33 +146,33 @@ public class OutputOptionMixin implements MessageWriter {
     }
 
     @Override
+    public void debugv(String msg, Object... params) {
+        if (isVerbose()) {
+            debug(MessageFormat.format(msg, params));
+        }
+    }
+
+    @Override
+    public void debugf(String msg, Object... params) {
+        if (isVerbose()) {
+            debug(String.format(msg, params));
+        }
+
+    }
+
+    @Override
     public void warn(String msg) {
         out().println(colorScheme().ansi().new Text("@|yellow " + WARN_ICON + " " + msg + "|@", colorScheme()));
     }
 
-    // CommandLine must be passed in (forwarded commands)
-    public void throwIfUnmatchedArguments(CommandLine cmd) {
-        List<String> unmatchedArguments = cmd.getUnmatchedArguments();
-        if (!unmatchedArguments.isEmpty()) {
-            throw new CommandLine.UnmatchedArgumentException(cmd, unmatchedArguments);
-        }
-    }
+    @Override
+    public void warnv(String msg, Object... params) {
+        warnv(MessageFormat.format(msg, params));
 
-    public int handleCommandException(Exception ex, String message) {
-        CommandLine cmd = mixee.commandLine();
-        printStackTrace(ex);
-        if (ex instanceof CommandLine.ParameterException) {
-            CommandLine.UnmatchedArgumentException.printSuggestions((CommandLine.ParameterException) ex, out());
-        }
-        error(message);
-        return cmd.getExitCodeExceptionMapper() != null ? cmd.getExitCodeExceptionMapper().getExitCode(ex)
-                : mixee.exitCodeOnInvalidInput();
     }
 
     @Override
-    public String toString() {
-        return "OutputOptions [showErrors=" + showErrors
-                + ", verbose=" + getVerbose() + "]";
+    public void warnf(String msg, Object... params) {
+        warnv(String.format(msg, params));
     }
-
 }

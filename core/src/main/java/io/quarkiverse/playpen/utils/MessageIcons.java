@@ -1,4 +1,4 @@
-package io.quarkiverse.playpen.client.util;
+package io.quarkiverse.playpen.utils;
 
 import io.smallrye.common.os.OS;
 

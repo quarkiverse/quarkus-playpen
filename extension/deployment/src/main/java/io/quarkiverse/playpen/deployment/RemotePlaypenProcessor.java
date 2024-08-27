@@ -37,12 +37,17 @@ public class RemotePlaypenProcessor {
         if (config.command.isPresent()) {
             String command = config.command.get();
             if ("remote-create-manual".equalsIgnoreCase(command)) {
+                log.info("Creating remote playpen container, this may take awhile...");
                 createRemote(liveReload, config, jar, true);
             } else if ("remote-create".equalsIgnoreCase(command)) {
+                log.info("Creating remote playpen container, this may take awhile...");
                 if (createRemote(liveReload, config, jar, false)) {
                     remoteGet(liveReload, config);
+                } else {
+                    log.error("Failed to create remote playpen container!");
                 }
             } else if ("remote-delete".equalsIgnoreCase(command)) {
+                log.info("Deleting remote playpen container, this may take awhile...");
                 deleteRemote(liveReload, config);
             } else if ("remote-exists".equalsIgnoreCase(command)) {
                 remoteExists(liveReload, config);
@@ -112,7 +117,11 @@ public class RemotePlaypenProcessor {
         RemotePlaypenClient client = getRemotePlaypenClient(liveReload, config);
         if (client == null)
             return;
-        client.delete();
+        if (client.delete()) {
+            log.info("Deletion of remote playpen container succeeded!");
+        } else {
+            log.error("Failed to delete remote playpen container!");
+        }
     }
 
     static boolean alreadyInvoked = false;
@@ -131,58 +140,62 @@ public class RemotePlaypenProcessor {
         if (client == null)
             return null;
         // check credentials
-        client.challenge();
+        if (!client.challenge()) {
+            return null;
+        }
 
         boolean createRemote = !client.isConnectingToExistingHost();
         boolean cleanupRemote = false;
         if (createRemote) {
             if (client.remotePlaypenExists()) {
-                log.info("Remote playpen already exists, not creating for session.");
+                log.info("Remote playpen container already exists, not creating for session.");
             } else {
+                log.info("Creating remote playpen container.  This may take awhile...");
                 if (createRemote(jar, false, client)) {
                     cleanupRemote = true;
                 } else {
+                    log.error("Failed to create remote playpen container.");
                     return null;
                 }
             }
         }
 
+        log.info("Connecting to playpen");
         boolean status = client.connect(cleanupRemote);
         if (!status) {
             log.error("Failed to connect to playpen");
             return null;
         }
+        log.info("Connected to playpen!");
         alreadyInvoked = true;
         boolean finalCleanup = cleanupRemote;
         //  Use a regular shutdown hook and make sure it runs after remove dev client is done
         //  otherwise developer will see stack traces
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            log.info("Cleaning up remote playpen, this may take awhile...");
             long wait = 10;
+            log.info("Waiting for quarkus:remote-dev to shutdown...");
             for (int i = 0; i < 30 && isThreadAlive("Remote dev client thread"); i++) {
                 try {
+                    Thread.sleep(wait);
                     if (wait < 1000)
                         wait *= 10;
-                    Thread.sleep(wait);
                 } catch (InterruptedException e) {
 
                 }
             }
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+            }
             callDisconnect(client, finalCleanup);
         }));
-        /*
-         * closeBuildItem.addCloseTask(() -> {
-         * callDisconnect(client, finalCleanup);
-         * }, true);
-         *
-         */
         return null;
     }
 
     private boolean isThreadAlive(String search) {
         Set<Thread> threads = Thread.getAllStackTraces().keySet();
         for (Thread thread : threads) {
-            if (thread.getName().contains(search) && thread.isAlive()) {
+            if (thread.getName().contains(search) && (thread.isAlive() || thread.isInterrupted())) {
                 return true;
             }
         }
@@ -191,7 +204,15 @@ public class RemotePlaypenProcessor {
 
     private static void callDisconnect(RemotePlaypenClient client, boolean finalCleanup) {
         try {
-            client.disconnect();
+            if (finalCleanup) {
+                log.info("Cleaning up remote playpen container, this may take awhile...");
+            } else {
+                log.info("Disconnecting from playpen...");
+            }
+            if (!client.disconnect()) {
+                log.error("Failed to disconnect from playpen");
+                return;
+            }
             if (finalCleanup) {
                 boolean first = true;
                 for (int i = 0; i < 30 && client.remotePlaypenExists(); i++) {

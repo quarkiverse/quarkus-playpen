@@ -49,6 +49,7 @@ public class PlaypenClient extends AbstractPlaypenClient {
         String responsePath = pollResponse.getHeader(PlaypenProxyConstants.RESPONSE_LINK);
         pollResponse.headers().forEach((key, val) -> {
             log.debugv("Poll response header: {0} : {1}", key, val);
+            log.debugf("Poll response header: {0} : {1}", key, val);
             int idx = key.indexOf(PlaypenProxyConstants.HEADER_FORWARD_PREFIX);
             if (idx == 0) {
                 String headerName = key.substring(PlaypenProxyConstants.HEADER_FORWARD_PREFIX.length());

@@ -8,7 +8,7 @@ import io.quarkiverse.playpen.client.OnShutdown;
 import io.quarkiverse.playpen.client.PlaypenClient;
 import io.quarkiverse.playpen.client.PlaypenConnectionConfig;
 import io.quarkiverse.playpen.client.util.BaseCommand;
-import io.quarkiverse.playpen.client.util.MessageIcons;
+import io.quarkiverse.playpen.utils.MessageIcons;
 import io.vertx.core.Vertx;
 import picocli.CommandLine;
 

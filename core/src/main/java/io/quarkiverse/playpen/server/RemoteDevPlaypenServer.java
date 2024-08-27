@@ -104,6 +104,7 @@ public class RemoteDevPlaypenServer {
                 return;
             if (System.currentTimeMillis() - lastRequest > config.idleTimeout) {
                 log.warnv("Shutting down remote playpen {0} due to idle timeout.", who);
+                master.getPlaypenForDeletion(who);
                 close();
             }
         }
@@ -164,17 +165,18 @@ public class RemoteDevPlaypenServer {
         }
 
         public void close(Runnable callback) {
-            if (!running)
-                return;
-            running = false;
-            client.close();
-            vertx.cancelTimer(timerId);
-            if (deleteOnShutdown) {
-                deleteDeployment(who, callback);
-            } else {
-                if (callback != null)
-                    callback.run();
+            if (running) {
+                running = false;
+                client.close();
+                vertx.cancelTimer(timerId);
+                if (deleteOnShutdown) {
+                    deleteDeployment(who, callback);
+                    return;
+                }
             }
+            if (callback != null)
+                callback.run();
+
         }
 
         @Override
