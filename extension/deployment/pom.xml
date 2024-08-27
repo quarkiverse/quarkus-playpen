@@ -10,7 +10,7 @@
     </parent>
 
     <artifactId>quarkus-playpen-deployment</artifactId>
-    <name>Quarkus - Playpen - Deployment</name>
+    <name>Quarkus - Playpen Extension - Deployment</name>
 
     <dependencies>
         <dependency>

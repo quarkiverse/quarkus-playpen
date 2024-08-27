@@ -8,6 +8,7 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>quarkus-playpen-operator</artifactId>
+    <name>Playpen Kubernetes Operator</name>
 
     <dependencyManagement>
         <dependencies>

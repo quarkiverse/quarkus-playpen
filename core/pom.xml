@@ -10,6 +10,7 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>playpen-core</artifactId>
+    <name>Playpen Core</name>
     <properties>
     </properties>
     <dependencies>

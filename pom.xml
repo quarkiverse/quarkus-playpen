@@ -10,11 +10,11 @@
   <artifactId>quarkus-playpen-parent</artifactId>
   <version>999-SNAPSHOT</version>
   <packaging>pom</packaging>
-  <name>Quarkus - Playpen - Parent</name>
+  <name>Playpen - Parent</name>
   <modules>
     <module>core</module>
     <module>proxy</module>
-    <module>client</module>
+    <module>cli</module>
     <module>operator</module>
     <module>extension/runtime</module>
     <module>extension/deployment</module>
@@ -89,7 +89,7 @@
         </property>
       </activation>
       <modules>
-        <module>client</module>
+        <module>cli</module>
         <module>operator</module>
         <module>proxy</module>
       </modules>
