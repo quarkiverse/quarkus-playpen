@@ -1,10 +1,12 @@
-package io.quarkiverse.playpen.client;
+package io.quarkiverse.playpen.client.local;
 
 import java.util.concurrent.CountDownLatch;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
+import io.quarkiverse.playpen.client.PlaypenClient;
+import io.quarkiverse.playpen.client.PlaypenConnectionConfig;
 import io.quarkus.runtime.Shutdown;
 import io.vertx.core.Vertx;
 

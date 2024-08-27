@@ -24,10 +24,13 @@ public class RemotePlaypenClient {
     protected String configString;
     protected String authHeader;
 
+
+
     public RemotePlaypenClient(String url, String credentials, String configString) {
         this.url = url;
         this.credentials = credentials;
         this.configString = configString;
+        if (this.configString == null) this.configString = "";
     }
 
     public boolean isConnectingToExistingHost() {
