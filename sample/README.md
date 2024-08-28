@@ -47,7 +47,7 @@ kubectl apply -f https://raw.githubusercontent.com/quarkiverse/quarkus-playpen/m
 
 ## Setup Playpen default configuration
 
-Take a look at this [default config](playpen-default-config.yaml).
+Take a look at this [default config](playpen-default-config.yml).
 
 
 Execute it
