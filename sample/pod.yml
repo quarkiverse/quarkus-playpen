@@ -1,19 +1,19 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: demo-rest-service-dev2
+  name: greeting-service-dev
   labels:
-    name: demo-rest-service-dev2
+    name: greeting-service-dev
 spec:
   containers:
-    - image: docker.io/quarkus-playpen/remote-quarkus-playpen:latest
+    - image: docker.io/samples/greeting-service:1.0
       imagePullPolicy: IfNotPresent
-      name: demo-rest-service-dev2
+      name: greeting-service-dev
       env:
         - name: QUARKUS_LAUNCH_DEVMODE
           value: "true"
-        - name: PLAYPEN_CODE_URL
-          value: "http://demo-rest-service-playpen/remote/bill/_playpen_api/deployment/zip"
+        - name: GREETING_ENV
+          value: "My Pod Greeting"
       ports:
         - containerPort: 8080
           name: http

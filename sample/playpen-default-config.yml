@@ -5,4 +5,3 @@ metadata:
   namespace: quarkus
 spec:
   authType: none
-  logLevel: DEBUG
