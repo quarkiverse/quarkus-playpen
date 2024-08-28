@@ -33,7 +33,7 @@ echo $(minikube ip)
 
 In your browser, you should be able to go to http://\`minikube ip`:30507/hello
 and see the greeting service respond.  Check out the
-[code](src/main/java/org/acme/GreetingResource.java) Notice that the
+[code](src/main/java/org/acme/GreetingResource.java#L26) Notice that the
 GREETING_ENV environment variable is used in creating the greeting
 message.
 
