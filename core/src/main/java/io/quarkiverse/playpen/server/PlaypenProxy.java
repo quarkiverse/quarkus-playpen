@@ -82,10 +82,10 @@ public class PlaypenProxy {
         proxyRouter.route(API_PATH + "/*").handler(routingContext -> routingContext.fail(404));
         proxyRouter.route().handler(this::proxy);
 
-        clientApiRouter.route("/version").method(HttpMethod.GET)
+        clientApiRouter.route(config.clientPathPrefix + "/version").method(HttpMethod.GET)
                 .handler(
                         (ctx) -> ctx.response().setStatusCode(200).putHeader("Content-Type", "text/plain").end(config.version));
-        clientApiRouter.route("/challenge").method(HttpMethod.GET)
+        clientApiRouter.route(config.clientPathPrefix + "/challenge").method(HttpMethod.GET)
                 .handler(this::challenge);
 
         local.init(this, clientApiRouter);

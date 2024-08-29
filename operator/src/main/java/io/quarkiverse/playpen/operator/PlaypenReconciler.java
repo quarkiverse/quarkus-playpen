@@ -268,9 +268,14 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
             primary.getStatus().getCleanup().add(0, new PlaypenStatus.CleanupResource("route", routeName));
         } else if (exposePolicy == ExposePolicy.ingress) {
             String ingressName = primary.getMetadata().getName() + "-playpen";
+            Map<String, String> annotations = new HashMap<>();
+            annotations.put("nginx.ingress.kubernetes.io/proxy-body-size", "1000m");
+            if (config.getIngress().getAnnotations() != null) {
+                annotations.putAll(config.getIngress().getAnnotations());
+            }
             IngressFluent<IngressBuilder>.SpecNested<IngressBuilder> ingressSpec = new IngressBuilder()
                     .withMetadata(PlaypenReconciler.createMetadataWithAnnotations(primary, ingressName,
-                            config.getIngress().getAnnotations()))
+                            annotations))
                     .withNewSpec();
 
             if (config.getIngress().getDomain() != null) {
@@ -302,7 +307,7 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                         .endPort().endService().endBackend().endPath().endHttp().endRule();
             }
 
-            Ingress ingress = (Ingress) ingressSpec.endSpec().build();
+            Ingress ingress = ingressSpec.endSpec().build();
             client.network().v1().ingresses().resource(ingress).serverSideApply();
             primary.getStatus().getCleanup().add(0, new PlaypenStatus.CleanupResource("ingress", ingressName));
         }

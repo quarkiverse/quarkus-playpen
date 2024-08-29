@@ -58,12 +58,12 @@ public class RemotePlaypenClient {
                 }
 
             } else if (responseCode >= 400) {
-                log.error("Failed to challenge: " + responseCode);
+                log.errorv("Failed to challenge at {0}: {1}", challenge, responseCode);
                 return false;
             }
             return true;
         } catch (Exception ex) {
-            log.error("Failure sending request " + ex.getMessage());
+            log.errorv("Failure sending request {0}: {1}", challenge, ex.getMessage());
         } finally {
             try {
                 connection.disconnect();
@@ -129,10 +129,10 @@ public class RemotePlaypenClient {
                 log.debug("Successfully set up playpen session.");
                 return true;
             } else {
-                log.error("Failed to connect to remote playpen: " + responseCode);
+                log.errorv("Failed to connect to remote playpen at {0}: {1}: ", connectUrl, responseCode);
             }
         } catch (Exception ex) {
-            log.error("Failure sending request " + ex.getMessage());
+            log.errorv("Failure sending request at {0}: {1}: ", connectUrl, ex.getMessage());
         } finally {
             try {
                 connection.disconnect();
