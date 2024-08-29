@@ -25,17 +25,17 @@ public class PlaypenConfig {
      * Query parameters:
      *
      * global - default value is "false"
-     *          if "true", playpen proxy will route all requests to local playpen
-     *          if "false", playpen proxy routes request only if "X-Playpen-Session" header is set
-     *          or one of the other config parameters adds additional ways to match a session
+     * if "true", playpen proxy will route all requests to local playpen
+     * if "false", playpen proxy routes request only if "X-Playpen-Session" header is set
+     * or one of the other config parameters adds additional ways to match a session
      * query - "query=name=value" If any requests have a query parameter that matches the name and
-     *         value specified, then the request will be routed to playpen
+     * value specified, then the request will be routed to playpen
      * header - "header=name=value" If any requests have a request header that matches the name and
-     *          value specified, then the request will be routed to playpen
-     * path - "path=prefix"  If any request urls are prefixed with the pathvalue, that matches and
-     *        requests will be routed
-     * clientIp - "clientIp=ipAddress"  If client IP address of request matches, then requests will
-     *            be routed to playpen
+     * value specified, then the request will be routed to playpen
+     * path - "path=prefix" If any request urls are prefixed with the pathvalue, that matches and
+     * requests will be routed
+     * clientIp - "clientIp=ipAddress" If client IP address of request matches, then requests will
+     * be routed to playpen
      *
      */
     @ConfigItem
@@ -58,37 +58,37 @@ public class PlaypenConfig {
      *
      * Query parameters:
      * If "host" parameter is not set, then the code if your project will be uploaded
-     * to a temporary pod running within the development cluster.  When the remote dev session
+     * to a temporary pod running within the development cluster. When the remote dev session
      * is ended, the temporary pod will be terminated.
      *
      *
      * cleanup - "cleanup=true|false" Whether the remote playpen container should be cleaned up when disconnecting
      * host - "host=hostname[:port] Host and port of a container within the development cluster that
-     *        is running your playpen
+     * is running your playpen
      * global - default value is "false"
-     *          if "true", playpen proxy will route all requests to local playpen
-     *          if "false", playpen proxy routes request only if "X-Playpen-Session" header is set
-     *          or one of the other config parameters adds additional ways to match a session
+     * if "true", playpen proxy will route all requests to local playpen
+     * if "false", playpen proxy routes request only if "X-Playpen-Session" header is set
+     * or one of the other config parameters adds additional ways to match a session
      * query - "query=name=value" If any requests have a query parameter that matches the name and
-     *         value specified, then the request will be routed to playpen
+     * value specified, then the request will be routed to playpen
      * header - "header=name=value" If any requests have a request header that matches the name and
-     *          value specified, then the request will be routed to playpen
-     * path - "path=prefix"  If any request urls are prefixed with the pathvalue, that matches and
-     *        requests will be routed
-     * clientIp - "clientIp=ipAddress"  If client IP address of request matches, then requests will
-     *            be routed to playpen
+     * value specified, then the request will be routed to playpen
+     * path - "path=prefix" If any request urls are prefixed with the pathvalue, that matches and
+     * requests will be routed
+     * clientIp - "clientIp=ipAddress" If client IP address of request matches, then requests will
+     * be routed to playpen
      */
     @ConfigItem
     public Optional<String> remote;
 
     /**
-     * Credentials for creating a connection.  Secret or "username:password".
+     * Credentials for creating a connection. Secret or "username:password".
      */
     @ConfigItem
     public Optional<String> credentials;
 
     /**
-     * Must set quarkus.playpen.remote.  If this variable isn't a full connection url
+     * Must set quarkus.playpen.remote. If this variable isn't a full connection url
      * you must also specify quarkus.live-reload.url.
      *
      * Execute a playpen command.
