@@ -3,7 +3,6 @@ package io.quarkiverse.playpen;
 import io.quarkiverse.playpen.server.PlaypenProxyConstants;
 import io.quarkus.arc.Arc;
 import io.vertx.core.http.HttpServerRequest;
-import org.jboss.logging.Logger;
 
 public class Playpen {
     //protected static final Logger log = Logger.getLogger(Playpen.class);
