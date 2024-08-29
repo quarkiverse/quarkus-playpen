@@ -103,7 +103,9 @@ public abstract class AbstractPlaypenClient {
         if (queryParams != null) {
             this.uri = this.uri + queryParams;
         }
-        log.info("client connect uri: " + this.uri);
+        String url = (config.ssl ? "https" : "http") + "://" + config.host + ":" + (config.port == -1 ? "" : config.port)
+                + this.uri;
+        log.info("client connect uri: " + url);
     }
 
     public boolean start() {

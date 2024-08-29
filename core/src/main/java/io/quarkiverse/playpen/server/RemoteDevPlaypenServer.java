@@ -152,7 +152,9 @@ public class RemoteDevPlaypenServer {
                 context.request().setURI(tmp);
             } else {
                 // add session header to request if it is not already there
-                if (!context.request().headers().contains(PlaypenProxyConstants.SESSION_HEADER)) {
+                // and we are not part of a global session
+                if (master.globalSession != this
+                        && !context.request().headers().contains(PlaypenProxyConstants.SESSION_HEADER)) {
                     context.request().headers().add(PlaypenProxyConstants.SESSION_HEADER, who);
                 }
             }

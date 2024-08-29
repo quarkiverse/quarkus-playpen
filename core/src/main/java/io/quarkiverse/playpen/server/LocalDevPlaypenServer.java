@@ -96,7 +96,9 @@ public class LocalDevPlaypenServer {
                 }
                 pollResponse.headers().add(PlaypenProxyConstants.HEADER_FORWARD_PREFIX + key, val);
             });
-            if (!proxiedRequest.headers().contains(PlaypenProxyConstants.SESSION_HEADER)) {
+            // add session header to request if it is not already there
+            // and we are not part of a global session
+            if (master.globalSession != session && !proxiedRequest.headers().contains(PlaypenProxyConstants.SESSION_HEADER)) {
                 pollResponse.headers().add(PlaypenProxyConstants.HEADER_FORWARD_PREFIX + PlaypenProxyConstants.SESSION_HEADER,
                         session.who);
             }

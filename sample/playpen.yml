@@ -1,4 +1,4 @@
 apiVersion: "io.quarkiverse.playpen/v1"
 kind: Playpen
 metadata:
-  name: greeting-service
+  name: greeting

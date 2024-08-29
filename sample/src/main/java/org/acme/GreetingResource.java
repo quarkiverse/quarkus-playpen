@@ -1,5 +1,6 @@
 package org.acme;
 
+import io.quarkiverse.playpen.Playpen;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -23,10 +24,17 @@ public class GreetingResource {
     @GET
     @Produces(MediaType.TEXT_HTML)
     public String hello(@QueryParam("user") @DefaultValue("developer") String user) {
+        String message = "";
+
+        String current = Playpen.current();
+        if (current != null) {
+            message += "<h1> Invoked within a playpen session: " + current + "</h1>";
+        }
+
         String greeting = System.getenv("GREETING_ENV");
         String time = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
         if (greeting == null) greeting = "Greetings";
-        String message = "<h1>" + greeting + " " + user + " " + time + "</h1>";
+        message += "<h1>" + greeting + " " + user + " " + time + "</h1>";
         return message;
     }
 }
