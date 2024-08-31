@@ -15,7 +15,7 @@ Quarkus Playpen allows you to create a local or remote *playpen* that
 temporarily overrides an existing service so that you can do live
 coding and quickly test your changes.  Requests to a sevice can be routed to your 
 laptop/IDE (local playpen) or a temporary pod in the development cloud (remote playpen).  When you're done
-testing, requests get routed to the original service. 
+testing, requests get routed back to the original service. 
 
 Currently only HTTP-based microservice development
 is supported, but, if there's enough interest in
@@ -63,7 +63,7 @@ For quarkus projects, add this dependency to your project
 
 For non-Quarkus projects you must download the [Playpen CLI](#playpen-cli)
 
-##Enabling a Playpen for a Service
+## Enabling a Playpen for a Service
 
 Playpen is enabled on a per-service basis.  To create a playpen for
 a specific Kubernetes service you must create a YAML file
@@ -86,7 +86,7 @@ deployed in the same namespace as the *playpen* you are creating.
 kubectl apply -f playpen.yml
 ```
 
-When this YAML is apply to your development cluster, a few things will happen
+When this YAML is applied to your development cluster, a few things will happen
 within the same namespace of the service your are creating a *playpen* for.
 1. Depending on the default [authentication policy](#authentication-policy) a new
 secret may be created
@@ -188,7 +188,7 @@ an ingress will be created with a path prefix on the host that
 forwards to the developer connection port.  This prefix will be
 `<service-name>-playpen-<namespace>`
 * **domain** In this case, an ingress will be created for the
-playpen developer connection on the DNS name `<service-name>-playpen-<namespace.<domain>`
+playpen developer connection on the DNS name `<service-name>-playpen-<namespace>.<domain>`
 * **annotations** This is a set of annotations you want to apply to the ingress
 you are creating.
 
@@ -308,6 +308,8 @@ Also requests that contain a path prefix of `users` will be rerouted.
 
 ### Start the connection for Quarkus
 
+Make sure you have the [quarkus playpen extension](#enabling-a-playpen-for-a-service) set up. 
+
 ```shell
 mvn quarkus:dev -Dquarkus.playpen.local="http://devcluster/greeting-playpen-default/local/john" \
     -Dquarkus.playpen.credentials="mysecret"
@@ -342,6 +344,15 @@ automatically when you are finished with your `quarkus:remote-dev` session.
 
 If you are not using Playpen with Quarkus you will have to create your
 development pod manually.
+
+## Remote Requirements
+* The 2nd port that is used for developer playpen connections
+  must be set up using an [expose policy](#expose-policy)
+* Non-quarkus apps, those using the playpen cli, must create their own
+remote development pod.  Quarkus though, will create one for you if does not exist.
+* The developer must know the credentials needed to connect
+  to the playpen defined by the [authentication policy](#authentication-policy)
+
 
 ### Connection URL
 
