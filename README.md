@@ -1,7 +1,7 @@
 # Quarkus Playpen
 ## *Live coding within a Kubernetes Development Cloud*
 
-Try out the [quickstart](sample/README.md)
+Try out the [quickstart](sample)
 
 Many organizations have a test or development cluster/cloud that mirrors
 production.  This allows developers to test-drive their changes
