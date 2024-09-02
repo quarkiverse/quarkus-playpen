@@ -289,14 +289,14 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: PROXY_IMAGE
-              value: "quay.io/quarkus-playpen/playpen-proxy:1.0"
+              value: "quay.io/quarkus-playpen/playpen-proxy:999-SNAPSHOT"
             - name: PROXY_IMAGEPULLPOLICY
               value: "IfNotPresent"
             - name: REMOTE_PLAYPEN_IMAGE
-              value: "quay.io/quarkus-playpen/remote-quarkus-playpen:1.0"
+              value: "quay.io/quarkus-playpen/remote-quarkus-playpen:999-SNAPSHOT"
             - name: REMOTE_PLAYPEN_IMAGEPULLPOLICY
               value: "IfNotPresent"
-          image: quay.io/quarkus-playpen/playpen-operator:1.0
+          image: quay.io/quarkus-playpen/playpen-operator:999-SNAPSHOT
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 3

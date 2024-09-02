@@ -57,7 +57,7 @@ For quarkus projects, add this dependency to your project
         <dependency>
             <groupId>io.quarkiverse.playpen</groupId>
             <artifactId>quarkus-playpen</artifactId>
-            <version>0.1</version>
+            <version>999-SNAPSHOT</version>
         </dependency>
 ```
 
@@ -123,6 +123,49 @@ a specific port value to assign to the node port.
 * **logLevel** Set to "DEBUG" if you are having issues with Playpen.  This will
 turn on debugging logging in the Playpen Proxy that you can view.
 
+### Troubleshooting
+If you are having problems, take a look at the status of the playpen by doing:
+```shell
+kubectl get playpen <service-name> -o yaml
+```
+
+Example output:
+
+```yaml
+status:
+    authPolicy: none
+    cleanup:
+    - name: greeting-playpen
+      type: service
+    - name: greeting-playpen
+      type: ingress
+    - name: greeting-origin
+      type: service
+    - name: greeting-playpen
+      type: deployment
+    - name: greeting-playpen
+      type: rolebinding
+    - name: greeting-playpen
+      type: serviceaccount
+    created: true
+    exposePolicy: ingress
+    ingress: devcluster/greeting-playpen-default
+    oldSelectors:
+      app.kubernetes.io/name: greeting
+```
+The `created` variable will be `true` if the `Playpen` was created successfully.  If
+there was a problem an `error` variable will be populated with an error message.  You can look
+at the `quarkus-playpen-operator` logs for more information.
+
+The [auth policy](#authentication-policy) used will
+be specified under `authPolicy`.  The [expose policy](#expose-policy) under `exposePolicy`.
+If an ingress was created, the `ingress` string will contain the host and prefix path(if needed).
+
+
+The `cleanup` variable will
+contain a list of things that were created and that will be deleted if the `Playpen` is ever 
+deleted.  The `oldSelectors` variable shows the old selector value of the original `Service`
+When the `Playpen` is deleted, the selector will be set back to the old value.
 
 
 ## Playpen Configs
@@ -151,6 +194,17 @@ And apply it to the dev cluster
 kubectl apply -f config.yml
 ```
 
+**NOTE** If you modify a `PlaypenConfig`, you must delete and re-create every playpen
+that uses it if you want those playpens to use the new configuration.  Any `Playpen`
+created will be labeled with the configuration that it was created with under
+the label `io.quarkiverse.playpen/config` with a value of `<namespace>-<config-name`.
+
+So, you if you wanted to delete all `Playpens` that used the `global` config in the
+`quarkus` namespace, you could do this.
+```shell
+kubectl delete playpens -l "io.quarkiverse.playpen/config=quarkus-global"
+```
+
 ### Authentication Policy
 The `spec.authType` defines how playpen proxy connections
 are secured.  These values are supported
@@ -164,6 +218,11 @@ password to authenticate developer playpen connections.
 
 The default authentication policy is `secret`.
 
+To get the value of a secret created for a service (let's say the service is `greeting`)
+```shell
+kubectl get secret greeting-playpen-auth -o jsonpath='{.data.password}' | base64 --decode
+```
+
 ### Expose Policy
 The `spec.exposePolicy` defines how the 2nd port on the
 Playpen Proxy is exposed so that developers can make
@@ -175,8 +234,10 @@ Playpen Proxy.
 * **ingress**  An ingress will be used.  See [ingress settings](#ingress-settings) for more info
 * **route** On Openshift clusters, a route will be created with the name
 `<service-name>-playpen`
-* **secureRoute** On Openshift clusters, a secure will will be reated with the name
+* **secureRoute** On Openshift clusters, a secure will will be created with the name
   `<service-name>-playpen`
+
+The default expose policy is `secureRoute` if on Openshift, and `nodePort` otherwise.
 
 
 #### Ingress Settings

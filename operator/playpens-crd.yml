@@ -28,6 +28,8 @@ spec:
             type: object
           status:
             properties:
+              authPolicy:
+                type: string
               cleanup:
                 items:
                   properties:
@@ -40,6 +42,10 @@ spec:
               created:
                 type: boolean
               error:
+                type: string
+              exposePolicy:
+                type: string
+              ingress:
                 type: string
               oldSelectors:
                 additionalProperties:

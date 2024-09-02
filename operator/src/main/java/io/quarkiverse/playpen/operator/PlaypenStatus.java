@@ -39,6 +39,33 @@ public class PlaypenStatus {
     private Map<String, String> oldSelectors = new HashMap<>();
     private boolean created;
     private String error;
+    private String authPolicy;
+    private String exposePolicy;
+    private String ingress;
+
+    public String getAuthPolicy() {
+        return authPolicy;
+    }
+
+    public void setAuthPolicy(String authPolicy) {
+        this.authPolicy = authPolicy;
+    }
+
+    public String getExposePolicy() {
+        return exposePolicy;
+    }
+
+    public void setExposePolicy(String exposePolicy) {
+        this.exposePolicy = exposePolicy;
+    }
+
+    public String getIngress() {
+        return ingress;
+    }
+
+    public void setIngress(String ingress) {
+        this.ingress = ingress;
+    }
 
     public Map<String, String> getOldSelectors() {
         return oldSelectors;

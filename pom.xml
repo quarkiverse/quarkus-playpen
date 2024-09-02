@@ -81,7 +81,7 @@
   </build>
   <profiles>
     <profile>
-      <id>it</id>
+      <id>skipped-for-release</id>
       <activation>
         <property>
           <name>performRelease</name>

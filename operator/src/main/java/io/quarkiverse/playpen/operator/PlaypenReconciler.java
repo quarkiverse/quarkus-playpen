@@ -214,9 +214,10 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
         return primary.getMetadata().getName() + "-playpen";
     }
 
-    private void createClientService(Playpen primary, PlaypenConfigSpec config) {
+    private void createClientService(Playpen primary, PlaypenStatus status, PlaypenConfigSpec config) {
         String name = playpenServiceName(primary);
         ExposePolicy exposePolicy = config.toExposePolicy();
+        status.setExposePolicy(exposePolicy.name());
         var spec = new ServiceBuilder()
                 .withMetadata(PlaypenReconciler.createMetadata(primary, name))
                 .withNewSpec();
@@ -279,9 +280,11 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                     .withNewSpec();
 
             if (config.getIngress().getDomain() != null) {
+                String host = ingressName + "-" + primary.getMetadata().getNamespace() + "."
+                        + config.getIngress().getDomain();
+                status.setIngress(host);
                 ingressSpec.addNewRule()
-                        .withHost(ingressName + "-" + primary.getMetadata().getNamespace() + "."
-                                + config.getIngress().getDomain())
+                        .withHost(host)
                         .withNewHttp()
                         .addNewPath()
                         .withPath("/")
@@ -293,6 +296,7 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                         .withName("http")
                         .endPort().endService().endBackend().endPath().endHttp().endRule();
             } else {
+                status.setIngress(config.getIngress().getHost() + getIngressPathPrefix(primary));
                 ingressSpec.addNewRule()
                         .withHost(config.getIngress().getHost())
                         .withNewHttp()
@@ -361,10 +365,11 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                 if (auth == AuthenticationType.secret) {
                     createSecret(playpen);
                 }
+                status.setAuthPolicy(auth.name());
                 createServiceAccount(playpen);
                 createProxyDeployment(playpen, configSpec, auth);
                 createOriginService(playpen, configSpec);
-                createClientService(playpen, configSpec);
+                createClientService(playpen, status, configSpec);
 
                 Map<String, String> oldSelectors = new HashMap<>();
                 oldSelectors.putAll(service.getSpec().getSelector());
