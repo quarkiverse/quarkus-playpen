@@ -57,7 +57,7 @@ For quarkus projects, add this dependency to your project
         <dependency>
             <groupId>io.quarkiverse.playpen</groupId>
             <artifactId>quarkus-playpen</artifactId>
-            <version>999-SNAPSHOT</version>
+            <version>0.1</version>
         </dependency>
 ```
 

@@ -247,7 +247,7 @@ kind: Service
 metadata:
   labels:
     app.kubernetes.io/name: quarkus-playpen-operator
-    app.kubernetes.io/version: 999-SNAPSHOT
+    app.kubernetes.io/version: 0.1
     app.kubernetes.io/part-of: quarkus-playpen
   name: quarkus-playpen-operator
   namespace: quarkus
@@ -266,7 +266,7 @@ kind: Deployment
 metadata:
   labels:
     app.kubernetes.io/name: quarkus-playpen-operator
-    app.kubernetes.io/version: 999-SNAPSHOT
+    app.kubernetes.io/version: 0.1
     app.kubernetes.io/part-of: quarkus-playpen
   name: quarkus-playpen-operator
   namespace: quarkus
@@ -279,7 +279,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/managed-by: quarkus
-        app.kubernetes.io/version: 999-SNAPSHOT
+        app.kubernetes.io/version: 0.1
         app.kubernetes.io/name: quarkus-playpen-operator
     spec:
       containers:
@@ -289,14 +289,14 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: PROXY_IMAGE
-              value: "quay.io/quarkus-playpen/playpen-proxy:999-SNAPSHOT"
+              value: "quay.io/quarkus-playpen/playpen-proxy:0.1"
             - name: PROXY_IMAGEPULLPOLICY
               value: "IfNotPresent"
             - name: REMOTE_PLAYPEN_IMAGE
-              value: "quay.io/quarkus-playpen/remote-quarkus-playpen:999-SNAPSHOT"
+              value: "quay.io/quarkus-playpen/remote-quarkus-playpen:0.1"
             - name: REMOTE_PLAYPEN_IMAGEPULLPOLICY
               value: "IfNotPresent"
-          image: quay.io/quarkus-playpen/playpen-operator:999-SNAPSHOT
+          image: quay.io/quarkus-playpen/playpen-operator:0.1
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 3
