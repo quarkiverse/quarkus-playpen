@@ -8,11 +8,13 @@ metadata:
 spec:
   ports:
     - name: http
+      nodePort: 30507
       port: 80
       protocol: TCP
       targetPort: 8080
   selector:
     app.kubernetes.io/name: greeting
+  type: NodePort
 ---
 apiVersion: apps/v1
 kind: Deployment
