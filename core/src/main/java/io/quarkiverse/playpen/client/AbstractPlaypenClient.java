@@ -7,10 +7,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.jboss.logging.Logger;
-
 import io.quarkiverse.playpen.server.PlaypenProxyConstants;
 import io.quarkiverse.playpen.server.auth.PlaypenAuth;
+import io.quarkiverse.playpen.utils.PlaypenLogger;
 import io.quarkiverse.playpen.utils.ProxyUtils;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientRequest;
@@ -19,7 +18,7 @@ import io.vertx.core.http.HttpClosedException;
 import io.vertx.core.http.HttpMethod;
 
 public abstract class AbstractPlaypenClient {
-    protected static final Logger log = Logger.getLogger(PlaypenClient.class);
+    protected static final PlaypenLogger log = PlaypenLogger.getLogger(AbstractPlaypenClient.class);
     protected HttpClient proxyClient;
     protected int numPollers = 1;
     protected volatile boolean running = true;
@@ -163,12 +162,7 @@ public abstract class AbstractPlaypenClient {
                         logError("Could not authenticate connection");
                         latch.countDown();
                         return;
-                    } else if (credentials == null) {
-                        logError("Could not authenticate connection. Please set credentials");
-                        latch.countDown();
-                        return;
-                    }
-                    if (challenged) {
+                    } else if (credentials == null || challenged) {
                         String message = "";
                         if (wwwAuthenticate.startsWith("Basic")) {
                             message = ". You must provide correct username and password in quarkus.playpen.credentials as <username>:<password>";
