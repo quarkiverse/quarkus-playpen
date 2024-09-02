@@ -9,6 +9,7 @@ import org.jboss.logging.Logger;
 import io.netty.channel.FileRegion;
 import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.DefaultHttpRequest;
+import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponse;
@@ -146,12 +147,23 @@ public class VirtualPlaypenClient extends AbstractPlaypenClient {
                                     String val = valueIterator.next();
                                     if (name.equalsIgnoreCase("Transfer-Encoding")
                                             && val.equals("chunked")) {
-                                        continue; // ignore transfer encoding, chunked screws up message and response
+                                        // ignore
+                                    } else if (name.equalsIgnoreCase("Content-Length")) {
+                                        pushRequest.headers().add("Content-Length", val);
+                                    } else {
+                                        pushRequest.headers().add(PlaypenProxyConstants.HEADER_FORWARD_PREFIX + name, val);
                                     }
-                                    pushRequest.headers().add(PlaypenProxyConstants.HEADER_FORWARD_PREFIX + name, val);
                                 }
                             }
-                            pushRequest.send(this)
+                            Future<HttpClientResponse> req = null;
+
+                            if (msg instanceof FullHttpResponse) {
+                                req = pushRequest.send(BufferImpl.buffer(((HttpContent) msg).content()));
+                            } else {
+                                req = pushRequest.send(this);
+                            }
+                            // a successful push restarts poll
+                            req
                                     .onFailure(exc -> {
                                         if (exc instanceof TimeoutException) {
                                             poll();
@@ -160,20 +172,22 @@ public class VirtualPlaypenClient extends AbstractPlaypenClient {
                                             workerOffline();
                                         }
                                     })
-                                    .onSuccess(VirtualPlaypenClient.this::handlePoll); // a successful push restarts poll
+                                    .onSuccess(VirtualPlaypenClient.this::handlePoll);
                         });
             }
-            if (msg instanceof HttpContent) {
-                log.debug("NettyResponseHandler: write HttpContent");
-                write(BufferImpl.buffer(((HttpContent) msg).content()));
-            }
-            if (msg instanceof FileRegion) {
-                log.error("FileRegion not supported yet");
-                throw new RuntimeException("FileRegion not supported yet");
-            }
-            if (msg instanceof LastHttpContent) {
-                log.debug("NettyResponseHandler: write LastHttpContent");
-                write(end);
+            if (!(msg instanceof FullHttpResponse)) { // writing response will be handled above if full
+                if (msg instanceof HttpContent) {
+                    log.debug("NettyResponseHandler: write HttpContent");
+                    write(BufferImpl.buffer(((HttpContent) msg).content()));
+                }
+                if (msg instanceof FileRegion) {
+                    log.error("FileRegion not supported yet");
+                    throw new RuntimeException("FileRegion not supported yet");
+                }
+                if (msg instanceof LastHttpContent) {
+                    log.debug("NettyResponseHandler: write LastHttpContent");
+                    write(end);
+                }
             }
         }
 

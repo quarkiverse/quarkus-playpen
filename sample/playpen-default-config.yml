@@ -4,4 +4,5 @@ metadata:
   name: global
   namespace: quarkus
 spec:
-  authType: secret
+  authType: none
+  logLevel: DEBUG

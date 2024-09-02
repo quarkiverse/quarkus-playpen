@@ -20,6 +20,7 @@ import io.quarkiverse.playpen.server.matchers.HeaderOrCookieMatcher;
 import io.quarkiverse.playpen.server.matchers.PathParamMatcher;
 import io.quarkiverse.playpen.server.matchers.PlaypenMatcher;
 import io.quarkiverse.playpen.server.matchers.QueryParamMatcher;
+import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -91,7 +92,7 @@ public class LocalDevPlaypenServer {
             session.pollProcessing();
             pollResponse.setStatusCode(200);
             proxiedRequest.headers().forEach((key, val) -> {
-                if (key.equalsIgnoreCase("Content-Length")) {
+                if (key.equalsIgnoreCase("Content-Length") || key.equalsIgnoreCase("transfer-encoding")) {
                     return;
                 }
                 pollResponse.headers().add(PlaypenProxyConstants.HEADER_FORWARD_PREFIX + key, val);
@@ -108,7 +109,7 @@ public class LocalDevPlaypenServer {
             pollResponse.putHeader(PlaypenProxyConstants.RESPONSE_LINK, responsePath);
             pollResponse.putHeader(PlaypenProxyConstants.METHOD_HEADER, proxiedRequest.method().toString());
             pollResponse.putHeader(PlaypenProxyConstants.URI_HEADER, proxiedRequest.uri());
-            sendBody(proxiedRequest, pollResponse);
+            sendBody(proxiedRequest, pollResponse, null);
         }
     }
 
@@ -339,7 +340,7 @@ public class LocalDevPlaypenServer {
         }
     }
 
-    private static void sendBody(HttpServerRequest source, HttpServerResponse destination) {
+    private static void sendBody(HttpServerRequest source, HttpServerResponse destination, Handler<Boolean> handler) {
         long contentLength = -1L;
         String contentLengthHeader = source.getHeader(HttpHeaders.CONTENT_LENGTH);
         if (contentLengthHeader != null) {
@@ -364,6 +365,9 @@ public class LocalDevPlaypenServer {
             if (ar.failed()) {
                 log.debug("Failed to pipe response on poll");
                 destination.reset();
+            }
+            if (handler != null) {
+                handler.handle(ar.succeeded());
             }
         });
     }
@@ -494,6 +498,7 @@ public class LocalDevPlaypenServer {
 
     public void pushResponse(RoutingContext ctx) {
         String who = ctx.pathParam("who");
+        log.debugv("pushResponse from {0}", who);
         String requestId = ctx.pathParam("request");
         String kp = ctx.queryParams().get("keepAlive");
         boolean keepAlive = kp == null ? true : Boolean.parseBoolean(kp);
@@ -524,6 +529,7 @@ public class LocalDevPlaypenServer {
             return;
         }
         proxiedResponse.setStatusCode(Integer.parseInt(status));
+        ctx.request().pause();
         pushedResponse.headers().forEach((key, val) -> {
             int idx = key.indexOf(PlaypenProxyConstants.HEADER_FORWARD_PREFIX);
             if (idx == 0) {
@@ -531,16 +537,17 @@ public class LocalDevPlaypenServer {
                 proxiedResponse.headers().add(headerName, val);
             }
         });
-        sendBody(pushedResponse, proxiedResponse);
-        if (keepAlive) {
-            log.debugv("Keep alive {0} {1}", master.config.service, who);
-            session.pollProcessing();
-            session.poll(ctx);
-        } else {
-            log.debugv("End polling {0} {1}", master.config.service, who);
-            session.pollEnded();
-            ctx.response().setStatusCode(204).end();
-        }
+        sendBody(pushedResponse, proxiedResponse, (success) -> {
+            if (keepAlive) {
+                log.debugv("Keep alive {0} {1}", master.config.service, who);
+                session.pollProcessing();
+                session.poll(ctx);
+            } else {
+                log.debugv("End polling {0} {1}", master.config.service, who);
+                session.pollEnded();
+                ctx.response().setStatusCode(204).end();
+            }
+        });
     }
 
     private String getPollLink(String who) {

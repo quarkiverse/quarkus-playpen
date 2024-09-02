@@ -76,7 +76,7 @@ See [docs](../README.md) for more info.
 ## Perform Live Coding Locally
 
 ```shell
-kubectl get service greeting-service-playpen
+kubectl get service greeting-playpen
 ```
 
 Look for the Nodeport under the "Ports" column.  You'll
@@ -86,7 +86,7 @@ need that port to connect to the greeting service playpen proxy.
 mvnw quarkus:dev -Dquarkus.playpen.local="http://`minikube ip`:32233/local/john?global=true"
 ```
 
-Replace `32233` with the nodeport of the `greeting-service-playpen` service.  Replace
+Replace `32233` with the nodeport of the `greeting-playpen` service.  Replace
 `john` with your first name.  The log should show that
 you've connected with the playpen and that your project has
 started in dev mode.

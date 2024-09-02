@@ -95,8 +95,15 @@ public class PlaypenClient extends AbstractPlaypenClient {
                     pushRequest.putHeader(PlaypenProxyConstants.STATUS_CODE_HEADER,
                             Integer.toString(serviceResponse.statusCode()));
                     serviceResponse.headers()
-                            .forEach((key, val) -> pushRequest.headers().add(PlaypenProxyConstants.HEADER_FORWARD_PREFIX + key,
-                                    val));
+                            .forEach((key, val) -> {
+
+                                if (key.equalsIgnoreCase("content-length")) {
+                                    pushRequest.headers().add(key, val);
+                                } else if (!key.equalsIgnoreCase("transfer-encoding")) {
+                                    pushRequest.headers().add(PlaypenProxyConstants.HEADER_FORWARD_PREFIX + key,
+                                            val);
+                                }
+                            });
                     pushRequest.send(serviceResponse)
                             .onFailure(exc -> {
                                 if (exc instanceof TimeoutException) {
