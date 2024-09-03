@@ -8,12 +8,12 @@ production.  This allows developers to test-drive their changes
 against a simulated production environment.
 
 To get something deployed in these environments requires a CI build
-and a deploy to the cluster.  This can take a lot of time and seriously
+and deploy to the cluster.  This can take a lot of time and seriously
 slow down the development cycle.
 
 Quarkus Playpen allows you to create a local or remote *playpen* that 
 temporarily overrides an existing service so that you can do live
-coding and quickly test your changes.  Requests to a sevice can be routed to your 
+coding and quickly test your changes.  Requests to a service can be routed to your 
 laptop/IDE (local playpen) or a temporary pod in the development cloud (remote playpen).  When you're done
 testing, requests get routed back to the original service. 
 
@@ -94,14 +94,14 @@ secret may be created
 3. A role-binding will be created for the service account so that
 it can do CRUD on pods in the namespace and get and list 
 services and deployments
-1. A Deployment will be created called `<service-name>-playpen`.  This deployment
+4. A Deployment will be created called `<service-name>-playpen`.  This deployment
 is a Playpen Proxy and the service account created earlier will be bound to it.  This proxy sits between the original service and the local
 or remote playpen of the developer that is interacting with the proxy.
-2. The existing Service will have its selector changed to point to the `<service-name>-playpen`
+5. The existing Service will have its selector changed to point to the `<service-name>-playpen`
 deployment
-3. A new Service will be created called `<service-name>-origin`.  This new service
+6. A new Service will be created called `<service-name>-origin`.  This new service
 will point to the original deployment that the service managed.
-4. Depending on the [expose policy](#expose-policy) a new Ingress or Openshift
+7. Depending on the [expose policy](#expose-policy) a new Ingress or Openshift
 route may be created
 
 The proxy exposes two ports.  The main port receives regular requests from the
