@@ -25,7 +25,7 @@ public class RemotePlaypenProcessor {
 
     @BuildStep
     public ArtifactResultBuildItem check(PlaypenConfig config) throws Exception {
-        if (config.remote.isPresent() && config.local.isPresent()) {
+        if (config.remote().isPresent() && config.local().isPresent()) {
             throw new BuildException("Must pick either quarkus.playpen.local or .remote");
         }
         return null;
@@ -34,8 +34,8 @@ public class RemotePlaypenProcessor {
     @BuildStep
     public ArtifactResultBuildItem command(LiveReloadConfig liveReload, PlaypenConfig config, JarBuildItem jar)
             throws Exception {
-        if (config.command.isPresent()) {
-            String command = config.command.get();
+        if (config.command().isPresent()) {
+            String command = config.command().get();
             if ("remote-create-manual".equalsIgnoreCase(command)) {
                 log.info("Creating remote playpen container, this may take awhile...");
                 createRemote(liveReload, config, jar, true);
@@ -130,7 +130,7 @@ public class RemotePlaypenProcessor {
     public ArtifactResultBuildItem playpen(LiveReloadConfig liveReload, PlaypenConfig config, JarBuildItem jar,
             CuratedApplicationShutdownBuildItem closeBuildItem)
             throws Exception {
-        if (!config.remote.isPresent() || config.command.isPresent()) {
+        if (!config.remote().isPresent() || config.command().isPresent()) {
             return null;
         }
         if (alreadyInvoked) {
@@ -230,7 +230,7 @@ public class RemotePlaypenProcessor {
 
     private static RemotePlaypenClient getRemotePlaypenClient(LiveReloadConfig liveReload, PlaypenConfig config)
             throws Exception {
-        String url = config.remote.orElse("");
+        String url = config.remote().orElse("");
         String queryString = "";
         if (url.contains("://")) {
             int idx = url.indexOf('?');
@@ -247,7 +247,7 @@ public class RemotePlaypenProcessor {
             queryString = url;
             url = liveReload.url.get();
         }
-        String creds = config.credentials.orElse(liveReload.password.orElse(null));
+        String creds = config.credentials().orElse(liveReload.password.orElse(null));
 
         RemotePlaypenClient client = new RemotePlaypenClient(url, creds, queryString);
         return client;

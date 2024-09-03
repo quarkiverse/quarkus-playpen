@@ -2,12 +2,13 @@ package io.quarkiverse.playpen.deployment;
 
 import java.util.Optional;
 
-import io.quarkus.runtime.annotations.ConfigItem;
 import io.quarkus.runtime.annotations.ConfigPhase;
 import io.quarkus.runtime.annotations.ConfigRoot;
+import io.smallrye.config.ConfigMapping;
 
-@ConfigRoot(name = "playpen", phase = ConfigPhase.BUILD_TIME)
-public class PlaypenConfig {
+@ConfigRoot(phase = ConfigPhase.BUILD_TIME)
+@ConfigMapping(prefix = "quarkus.playpen")
+public interface PlaypenConfig {
     /**
      * Only usable with quarkus dev mode and the quarkus.playpen.command property is NOT set.
      *
@@ -38,8 +39,7 @@ public class PlaypenConfig {
      * be routed to playpen
      *
      */
-    @ConfigItem
-    public Optional<String> local;
+    Optional<String> local();
 
     /**
      * Only usable in remote dev mode and the quarkus.playpen.command property is NOT set.
@@ -78,14 +78,12 @@ public class PlaypenConfig {
      * clientIp - "clientIp=ipAddress" If client IP address of request matches, then requests will
      * be routed to playpen
      */
-    @ConfigItem
-    public Optional<String> remote;
+    Optional<String> remote();
 
     /**
      * Credentials for creating a connection. Secret or "username:password".
      */
-    @ConfigItem
-    public Optional<String> credentials;
+    Optional<String> credentials();
 
     /**
      * Must set quarkus.playpen.remote. If this variable isn't a full connection url
@@ -98,8 +96,7 @@ public class PlaypenConfig {
      * remote-delete - delete a remote container
      * remote-get - Specify host[:port] of remote playpen container
      */
-    @ConfigItem
-    public Optional<String> command;
+    Optional<String> command();
 
     /**
      * If true, quarkus will not connect to local playpen on boot. Connection would have
@@ -107,7 +104,6 @@ public class PlaypenConfig {
      *
      * This is for internal testing purposes only.
      */
-    @ConfigItem(defaultValue = "false")
-    public boolean manualStart;
+    boolean manualStart();
 
 }

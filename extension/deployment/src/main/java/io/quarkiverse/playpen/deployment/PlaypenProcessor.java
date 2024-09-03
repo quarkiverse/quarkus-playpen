@@ -33,15 +33,15 @@ public class PlaypenProcessor {
             ShutdownContextBuildItem shutdown,
             PlaypenConfig config,
             LocalPlaypenRecorder proxy) {
-        if (config.local.isPresent() && !config.command.isPresent()) {
-            PlaypenConnectionConfig playpen = PlaypenConnectionConfig.fromUri(config.local.get());
+        if (config.local().isPresent() && !config.command().isPresent()) {
+            PlaypenConnectionConfig playpen = PlaypenConnectionConfig.fromUri(config.local().get());
             if (playpen.error != null) {
                 throw new RuntimeException(playpen.error);
             }
-            if (config.credentials.isPresent()) {
-                playpen.credentials = config.credentials.get();
+            if (config.credentials().isPresent()) {
+                playpen.credentials = config.credentials().get();
             }
-            proxy.init(vertx.getVertx(), shutdown, playpen, config.manualStart);
+            proxy.init(vertx.getVertx(), shutdown, playpen, config.manualStart());
         }
     }
 
