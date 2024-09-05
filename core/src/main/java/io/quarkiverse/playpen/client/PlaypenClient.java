@@ -3,6 +3,7 @@ package io.quarkiverse.playpen.client;
 import java.util.concurrent.TimeoutException;
 
 import io.quarkiverse.playpen.server.PlaypenProxyConstants;
+import io.quarkiverse.playpen.utils.InsecureSsl;
 import io.quarkiverse.playpen.utils.ProxyUtils;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
@@ -16,6 +17,15 @@ public class PlaypenClient extends AbstractPlaypenClient {
 
     protected PlaypenClient() {
 
+    }
+
+    public static Boolean isSelfSigned(String url) {
+        int idx = url.indexOf(PlaypenProxyConstants.LOCAL_API_PATH);
+        if (idx < 0) {
+            throw new RuntimeException("Illegal Url: " + url);
+        }
+        String version = url.substring(0, idx) + "/version";
+        return InsecureSsl.isSelfSigned(version);
     }
 
     public static PlaypenClientBuilder create(Vertx vertx) {

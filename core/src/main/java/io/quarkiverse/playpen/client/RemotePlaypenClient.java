@@ -13,6 +13,7 @@ import java.util.Base64;
 
 import io.quarkiverse.playpen.server.PlaypenProxyConstants;
 import io.quarkiverse.playpen.server.auth.PlaypenAuth;
+import io.quarkiverse.playpen.utils.InsecureSsl;
 import io.quarkiverse.playpen.utils.PlaypenLogger;
 
 public class RemotePlaypenClient {
@@ -33,6 +34,15 @@ public class RemotePlaypenClient {
 
     public boolean isConnectingToExistingHost() {
         return configString.contains("host=");
+    }
+
+    public Boolean isSelfSigned() {
+        int idx = url.indexOf(PlaypenProxyConstants.REMOTE_API_PATH);
+        if (idx < 0) {
+            throw new RuntimeException("Illegal Url: " + url);
+        }
+        String version = url.substring(0, idx) + "/version";
+        return InsecureSsl.isSelfSigned(version);
     }
 
     public boolean challenge() throws IOException {

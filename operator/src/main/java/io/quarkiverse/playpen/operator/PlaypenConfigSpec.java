@@ -33,11 +33,26 @@ public class PlaypenConfigSpec {
         }
     }
 
+    public static class PlaypenRoute {
+        private Map<String, String> annotations;
+
+        public Map<String, String> getAnnotations() {
+            return annotations;
+        }
+
+        public void setAnnotations(Map<String, String> annotations) {
+            this.annotations = annotations;
+        }
+
+    }
+
     private String authType;
     private Integer pollTimeoutSeconds;
     private Integer idleTimeoutSeconds;
     private String logLevel;
     private PlaypenIngress ingress;
+    private PlaypenRoute route;
+    private PlaypenRoute secureRoute;
     /**
      * manual
      * ingress
@@ -87,6 +102,22 @@ public class PlaypenConfigSpec {
         this.ingress = ingress;
     }
 
+    public PlaypenRoute getRoute() {
+        return route;
+    }
+
+    public void setRoute(PlaypenRoute route) {
+        this.route = route;
+    }
+
+    public PlaypenRoute getSecureRoute() {
+        return secureRoute;
+    }
+
+    public void setSecureRoute(PlaypenRoute secureRoute) {
+        this.secureRoute = secureRoute;
+    }
+
     public AuthenticationType toAuthenticationType() {
         if (authType == null)
             return AuthenticationType.secret;
@@ -96,6 +127,12 @@ public class PlaypenConfigSpec {
     public ExposePolicy toExposePolicy() {
         if (exposePolicy == null && ingress != null) {
             return ExposePolicy.ingress;
+        }
+        if (exposePolicy == null && route != null) {
+            return ExposePolicy.route;
+        }
+        if (exposePolicy == null && secureRoute != null) {
+            return ExposePolicy.route;
         }
         if (exposePolicy == null) {
             return ExposePolicy.defaultPolicy;

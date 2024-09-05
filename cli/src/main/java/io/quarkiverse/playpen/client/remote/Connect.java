@@ -4,6 +4,7 @@ import static picocli.CommandLine.Help.Visibility.NEVER;
 
 import java.util.concurrent.Callable;
 
+import io.quarkiverse.playpen.utils.InsecureSsl;
 import jakarta.inject.Inject;
 
 import io.quarkiverse.playpen.client.OnShutdown;
@@ -41,6 +42,21 @@ public class Connect extends BaseCommand implements Callable<Integer> {
         configString = configString + "host=" + host;
 
         RemotePlaypenClient client = new RemotePlaypenClient(url, credentials, configString);
+        Boolean selfSigned = client.isSelfSigned();
+        if (selfSigned == null) {
+            log.error("Invalid playpen url");
+            System.exit(1);
+        }
+        if (selfSigned) {
+            if (config.trustCert()) {
+                InsecureSsl.trustAllByDefault();
+            } else {
+                log.warn(
+                        "Playpen https url is self-signed. If you trust this endpoint, please specify quarkus.playpen.trust-cert=true");
+                System.exit(1);
+                return null;
+            }
+        }
         client.challenge();
         if (client.connect(false)) {
             output.info("Connected " + MessageIcons.SUCCESS_ICON);

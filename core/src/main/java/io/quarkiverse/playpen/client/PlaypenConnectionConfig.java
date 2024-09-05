@@ -17,6 +17,7 @@ public class PlaypenConnectionConfig {
     public String credentials;
     public String prefix;
     public boolean isGlobal;
+    public boolean trustCert;
 
     public static PlaypenConnectionConfig fromUri(String uriString) {
         PlaypenConnectionConfig playpen = new PlaypenConnectionConfig();

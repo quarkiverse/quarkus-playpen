@@ -5,6 +5,7 @@ import java.util.List;
 import org.jboss.logging.Logger;
 
 import io.quarkiverse.playpen.LocalPlaypenRecorder;
+import io.quarkiverse.playpen.client.PlaypenClient;
 import io.quarkiverse.playpen.client.PlaypenConnectionConfig;
 import io.quarkus.builder.BuildException;
 import io.quarkus.deployment.IsNormal;
@@ -34,9 +35,26 @@ public class PlaypenProcessor {
             PlaypenConfig config,
             LocalPlaypenRecorder proxy) {
         if (config.local().isPresent() && !config.command().isPresent()) {
+
             PlaypenConnectionConfig playpen = PlaypenConnectionConfig.fromUri(config.local().get());
             if (playpen.error != null) {
                 throw new RuntimeException(playpen.error);
+            }
+            if (config.trustCert()) {
+                playpen.trustCert = true;
+            } else {
+                Boolean selfSigned = PlaypenClient.isSelfSigned(config.local().get());
+                if (selfSigned == null) {
+                    log.error("Invalid playpen url");
+                    System.exit(1);
+                }
+                if (selfSigned) {
+                    if (!config.trustCert()) {
+                        log.warn(
+                                "Playpen https url is self-signed. If you trust this endpoint, please specify quarkus.playpen.trust-cert=true");
+                        System.exit(1);
+                    }
+                }
             }
             if (config.credentials().isPresent()) {
                 playpen.credentials = config.credentials().get();

@@ -67,6 +67,11 @@ public class PlaypenClientBuilder {
         HttpClientOptions options = new HttpClientOptions();
         options.setDefaultHost(config.host);
         options.setDefaultPort(config.port);
+        if (config.ssl) {
+            options.setSsl(true);
+            if (config.trustCert)
+                options.setTrustAll(true);
+        }
         playpenClient.proxyClient = vertx.createHttpClient(options);
         playpenClient.initUri(config);
         return playpenClient;

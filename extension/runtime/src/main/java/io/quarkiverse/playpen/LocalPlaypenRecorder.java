@@ -39,7 +39,9 @@ public class LocalPlaypenRecorder {
         options.setDefaultHost(config.host);
         options.setDefaultPort(config.port);
         if (config.ssl) {
-            options.setSsl(true).setTrustAll(true);
+            options.setSsl(true);
+            if (config.trustCert)
+                options.setTrustAll(true);
         }
         client.setCredentials(config.credentials);
         client.setProxyClient(vertx.createHttpClient(options));

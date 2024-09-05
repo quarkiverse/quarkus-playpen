@@ -4,16 +4,15 @@ kind: Namespace
 metadata:
   labels:
     app.kubernetes.io/part-of: quarkus-playpen
-  name: quarkus
+  name: quarkus-playpen
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   labels:
     app.kubernetes.io/part-of: quarkus-playpen
-    app.kubernetes.io/name: quarkus-playpen-operator
-  name: quarkus-playpen-operator
-  namespace: quarkus
+  name: playpen-operator
+  namespace: quarkus-playpen
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -40,6 +39,8 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  labels:
+    app.kubernetes.io/part-of: quarkus-playpen
   name: playpen-cluster-role
 rules:
   - apiGroups:
@@ -72,7 +73,6 @@ rules:
       - deployments
       - secrets
       - serviceaccounts
-      - rolebindings
       - pods
     verbs:
       - get
@@ -82,7 +82,6 @@ rules:
       - create
       - delete
   - apiGroups:
-      - ""
       - route.openshift.io
     resources:
       - routes
@@ -115,6 +114,13 @@ rules:
       - update
       - create
       - delete
+  - apiGroups:
+      - apiextensions.k8s.io
+    resources:
+      - customresourcedefinitions
+    verbs:
+      - get
+      - list
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -146,43 +152,9 @@ rules:
       - list
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  labels:
-    app.kubernetes.io/part-of: quarkus-playpen
-  annotations:
-    app.dekorate.io/commit-id: 2bb0280275625c12023981fc89a487438c12dd04
-  name: josdk-crd-validating-cluster-role
-rules:
-  - apiGroups:
-      - apiextensions.k8s.io
-    resources:
-      - customresourcedefinitions
-    verbs:
-      - get
-      - list
----
-apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   labels:
-    app.kubernetes.io/name: quarkus-playpen-operator
-    app.kubernetes.io/part-of: quarkus-playpen
-  name: playpen-crd-validating-role-binding
-roleRef:
-  kind: ClusterRole
-  apiGroup: rbac.authorization.k8s.io
-  name: josdk-crd-validating-cluster-role
-subjects:
-  - kind: ServiceAccount
-    name: quarkus-playpen-operator
-    namespace: quarkus
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  labels:
-    app.kubernetes.io/name: quarkus-playpen-operator
     app.kubernetes.io/part-of: quarkus-playpen
   name: playpenconfig-role-binding
 roleRef:
@@ -191,14 +163,13 @@ roleRef:
   name: playpenconfig-cluster-role
 subjects:
   - kind: ServiceAccount
-    name: quarkus-playpen-operator
-    namespace: quarkus
+    name: playpen-operator
+    namespace: quarkus-playpen
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   labels:
-    app.kubernetes.io/name: quarkus-playpen-operator
     app.kubernetes.io/part-of: quarkus-playpen
   name: playpen-role-binding
 roleRef:
@@ -207,14 +178,13 @@ roleRef:
   name: playpen-cluster-role
 subjects:
   - kind: ServiceAccount
-    name: quarkus-playpen-operator
-    namespace: quarkus
+    name: playpen-operator
+    namespace: quarkus-playpen
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   labels:
-    app.kubernetes.io/name: quarkus-playpen-operator
     app.kubernetes.io/part-of: quarkus-playpen
   name: playpen-operator-cluster-role-binding
 roleRef:
@@ -223,34 +193,31 @@ roleRef:
   name: playpen-operator-cluster-role
 subjects:
   - kind: ServiceAccount
-    name: quarkus-playpen-operator
-    namespace: quarkus
+    name: playpen-operator
+    namespace: quarkus-playpen
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   labels:
-    app.kubernetes.io/name: quarkus-playpen-operator
-    app.kubernetes.io/part-of: quarkus-playpen
-  name: quarkus-playpen-operator-view
+    app.kubernetes.io/part-of: playpen
+  name: playpen-operator-view
 roleRef:
   kind: ClusterRole
   apiGroup: rbac.authorization.k8s.io
   name: view
 subjects:
   - kind: ServiceAccount
-    name: quarkus-playpen-operator
-    namespace: quarkus
+    name: playpen-operator
+    namespace: quarkus-playpen
 ---
 apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app.kubernetes.io/name: quarkus-playpen-operator
-    app.kubernetes.io/version: 0.1
     app.kubernetes.io/part-of: quarkus-playpen
-  name: quarkus-playpen-operator
-  namespace: quarkus
+  name: playpen-operator
+  namespace: quarkus-playpen
 spec:
   ports:
     - name: http
@@ -258,29 +225,26 @@ spec:
       protocol: TCP
       targetPort: 8080
   selector:
-    app.kubernetes.io/name: quarkus-playpen-operator
+    app.kubernetes.io/name: playpen-operator
   type: ClusterIP
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app.kubernetes.io/name: quarkus-playpen-operator
-    app.kubernetes.io/version: 0.1
+    app.kubernetes.io/name: playpen-operator
     app.kubernetes.io/part-of: quarkus-playpen
-  name: quarkus-playpen-operator
-  namespace: quarkus
+  name: playpen-operator
+  namespace: quarkus-playpen
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: quarkus-playpen-operator
+      app.kubernetes.io/name: playpen-operator
   template:
     metadata:
       labels:
-        app.kubernetes.io/managed-by: quarkus
-        app.kubernetes.io/version: 0.1
-        app.kubernetes.io/name: quarkus-playpen-operator
+        app.kubernetes.io/name: playpen-operator
     spec:
       containers:
         - env:
@@ -308,7 +272,7 @@ spec:
             periodSeconds: 10
             successThreshold: 1
             timeoutSeconds: 10
-          name: quarkus-playpen-operator
+          name: playpen-operator
           ports:
             - containerPort: 8080
               name: http
@@ -333,4 +297,4 @@ spec:
             periodSeconds: 10
             successThreshold: 1
             timeoutSeconds: 10
-      serviceAccountName: quarkus-playpen-operator
+      serviceAccountName: playpen-operator

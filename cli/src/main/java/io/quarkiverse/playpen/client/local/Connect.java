@@ -19,6 +19,9 @@ public class Connect extends BaseCommand implements Callable<Integer> {
             "--local-port" }, defaultValue = "8080", description = "port of local process", showDefaultValue = CommandLine.Help.Visibility.ALWAYS)
     private int localPort = 8080;
 
+    @CommandLine.Option(names = { "--trust-cert" }, defaultValue = "false", description = "port of local process", showDefaultValue = CommandLine.Help.Visibility.ALWAYS)
+    private boolean trustCert;
+
     @CommandLine.Option(names = { "-c",
             "--credentials" }, description = "user:password or secret")
     private String credentials;
@@ -38,6 +41,22 @@ public class Connect extends BaseCommand implements Callable<Integer> {
         if (config.error != null) {
             output.error(config.error);
             return CommandLine.ExitCode.SOFTWARE;
+        }
+        if (trustCert) {
+            config.trustCert = true;
+        } else {
+            Boolean selfSigned = PlaypenClient.isSelfSigned(uri);
+            if (selfSigned == null) {
+                output.error("Invalid playpen url");
+                System.exit(1);
+            }
+            if (selfSigned) {
+                if (!trustCert) {
+                    output.warn(
+                            "Playpen https url is self-signed. If you trust this endpoint, please specify quarkus.playpen.trust-cert=true");
+                    return CommandLine.ExitCode.SOFTWARE;
+                }
+            }
         }
         config.credentials = credentials;
 

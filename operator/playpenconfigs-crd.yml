@@ -38,6 +38,20 @@ spec:
                 type: string
               pollTimeoutSeconds:
                 type: integer
+              route:
+                properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    type: object
+                type: object
+              secureRoute:
+                properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    type: object
+                type: object
             type: object
           status:
             type: object

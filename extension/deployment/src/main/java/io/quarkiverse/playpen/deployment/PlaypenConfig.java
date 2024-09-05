@@ -5,6 +5,7 @@ import java.util.Optional;
 import io.quarkus.runtime.annotations.ConfigPhase;
 import io.quarkus.runtime.annotations.ConfigRoot;
 import io.smallrye.config.ConfigMapping;
+import io.smallrye.config.WithDefault;
 
 @ConfigRoot(phase = ConfigPhase.BUILD_TIME)
 @ConfigMapping(prefix = "quarkus.playpen")
@@ -99,11 +100,20 @@ public interface PlaypenConfig {
     Optional<String> command();
 
     /**
+     * When url is https and certs are self-signed
+     * connection will abort unless trustCert == true
+     *
+     */
+    @WithDefault("false")
+    boolean trustCert();
+
+    /**
      * If true, quarkus will not connect to local playpen on boot. Connection would have
      * to be done manually from the recorder method.
      *
      * This is for internal testing purposes only.
      */
+    @WithDefault("false")
     boolean manualStart();
 
 }

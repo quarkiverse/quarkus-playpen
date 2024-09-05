@@ -68,6 +68,10 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
     @ConfigProperty(name = "remote.playpen.imagepullpolicy", defaultValue = "Always")
     String remotePlaypenImagePolicy;
 
+    @Inject
+    @ConfigProperty(name = "kubernetes.namespace")
+    String playpenNamespace;
+
     private PlaypenConfigSpec getPlaypenConfig(Playpen primary) {
         PlaypenConfig config = findPlaypenConfig(primary);
         return toDefaultedSpec(config);
@@ -76,7 +80,7 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
     private PlaypenConfig findPlaypenConfig(Playpen primary) {
         MixedOperation<PlaypenConfig, KubernetesResourceList<PlaypenConfig>, Resource<PlaypenConfig>> configs = client
                 .resources(PlaypenConfig.class);
-        String configNamespace = "quarkus";
+        String configNamespace = playpenNamespace;
         String configName = "global";
         if (primary.getSpec() != null && primary.getSpec().getConfig() != null) {
             configName = primary.getSpec().getConfig();
@@ -242,13 +246,16 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                 .endSpec().build();
         client.resource(service).serverSideApply();
 
-        int routerTimeout = config.getPollTimeoutSeconds() + 1;
-
         if (exposePolicy == ExposePolicy.secureRoute) {
             String routeName = primary.getMetadata().getName() + "-playpen";
+            Map<String, String> annotations = new HashMap<>();
+            annotations.put("haproxy.router.openshift.io/timeout", "180s");
+            if (config.getSecureRoute().getAnnotations() != null) {
+                annotations.putAll(config.getSecureRoute().getAnnotations());
+            }
             Route route = new RouteBuilder()
                     .withMetadata(PlaypenReconciler.createMetadataWithAnnotations(primary, routeName,
-                            "haproxy.router.openshift.io/timeout", routerTimeout + "s"))
+                            annotations))
                     .withNewSpec().withNewTo().withKind("Service").withName(playpenServiceName(primary))
                     .endTo()
                     .withNewPort().withNewTargetPort("http").endPort()
@@ -258,9 +265,14 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
             primary.getStatus().getCleanup().add(0, new PlaypenStatus.CleanupResource("route", routeName));
         } else if (exposePolicy == ExposePolicy.route) {
             String routeName = primary.getMetadata().getName() + "-playpen";
+            Map<String, String> annotations = new HashMap<>();
+            annotations.put("haproxy.router.openshift.io/timeout", "180s");
+            if (config.getRoute().getAnnotations() != null) {
+                annotations.putAll(config.getRoute().getAnnotations());
+            }
             Route route = new RouteBuilder()
                     .withMetadata(PlaypenReconciler.createMetadataWithAnnotations(primary, routeName,
-                            "haproxy.router.openshift.io/timeout", routerTimeout + "s"))
+                            annotations))
                     .withNewSpec().withNewTo().withKind("Service").withName(playpenServiceName(primary))
                     .endTo()
                     .withNewPort().withNewTargetPort("http").endPort()
@@ -398,6 +410,10 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
             } catch (RuntimeException e) {
                 status.setError(e.getMessage());
                 log.error("Error creating playpen " + playpen.getMetadata().getName(), e);
+                // cleanup after ourselves on an error
+                cleanup(playpen);
+                status.setCleanup(null);
+                status.setOldSelectors(null);
                 return UpdateControl.updateStatus(playpen);
             }
         } else {
@@ -419,11 +435,18 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
         if (playpen.getStatus() == null) {
             return DeleteControl.defaultDelete();
         }
-        if (playpen.getStatus().getOldSelectors() != null && !playpen.getStatus().getOldSelectors().isEmpty()) {
+        cleanup(playpen);
+
+        return DeleteControl.defaultDelete();
+    }
+
+    private void cleanup(Playpen playpen) {
+        PlaypenStatus status = playpen.getStatus();
+        if (status.getOldSelectors() != null && !status.getOldSelectors().isEmpty()) {
             resetServiceSelector(client, playpen);
         }
-        if (playpen.getStatus().getCleanup() != null) {
-            for (PlaypenStatus.CleanupResource cleanup : playpen.getStatus().getCleanup()) {
+        if (status.getCleanup() != null) {
+            for (PlaypenStatus.CleanupResource cleanup : status.getCleanup()) {
                 log.info("Cleanup: " + cleanup.getType() + " " + cleanup.getName());
                 if (cleanup.getType().equals("secret")) {
                     suppress(() -> client.secrets().inNamespace(playpen.getMetadata().getNamespace())
@@ -451,21 +474,23 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                 }
             }
         }
-
-        return DeleteControl.defaultDelete();
     }
 
     public static void resetServiceSelector(KubernetesClient client, Playpen playpen) {
-        ServiceResource<Service> serviceResource = client.services().inNamespace(playpen.getMetadata().getNamespace())
-                .withName(playpen.getMetadata().getName());
-        UnaryOperator<Service> edit = (s) -> {
-            return new ServiceBuilder(s)
-                    .editSpec()
-                    .withSelector(playpen.getStatus().getOldSelectors())
-                    .endSpec().build();
+        try {
+            ServiceResource<Service> serviceResource = client.services().inNamespace(playpen.getMetadata().getNamespace())
+                    .withName(playpen.getMetadata().getName());
+            UnaryOperator<Service> edit = (s) -> {
+                return new ServiceBuilder(s)
+                        .editSpec()
+                        .withSelector(playpen.getStatus().getOldSelectors())
+                        .endSpec().build();
 
-        };
-        serviceResource.edit(edit);
+            };
+            serviceResource.edit(edit);
+        } catch (Exception e) {
+            log.error("Failed to reset service selector to old value", e);
+        }
     }
 
     static ObjectMeta createMetadata(Playpen resource, String name) {
@@ -530,6 +555,22 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
             spec.setExposePolicy(ExposePolicy.ingress.name());
             spec.setIngress(new PlaypenConfigSpec.PlaypenIngress());
         }
+        if (oldSpec.getRoute() != null) {
+            spec.setExposePolicy(ExposePolicy.route.name());
+            spec.setRoute(oldSpec.getRoute());
+        } else if (oldSpec.toExposePolicy() == ExposePolicy.route) {
+            spec.setExposePolicy(ExposePolicy.route.name());
+            spec.setRoute(new PlaypenConfigSpec.PlaypenRoute());
+        }
+
+        if (oldSpec.getSecureRoute() != null) {
+            spec.setExposePolicy(ExposePolicy.secureRoute.name());
+            spec.setSecureRoute(oldSpec.getSecureRoute());
+        } else if (oldSpec.toExposePolicy() == ExposePolicy.secureRoute) {
+            spec.setExposePolicy(ExposePolicy.secureRoute.name());
+            spec.setSecureRoute(new PlaypenConfigSpec.PlaypenRoute());
+        }
+
         if (oldSpec.getPollTimeoutSeconds() != null)
             spec.setPollTimeoutSeconds(oldSpec.getPollTimeoutSeconds());
         if (oldSpec.getIdleTimeoutSeconds() != null)

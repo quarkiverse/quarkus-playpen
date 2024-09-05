@@ -6,6 +6,7 @@ import java.util.Set;
 import org.jboss.logging.Logger;
 
 import io.quarkiverse.playpen.client.RemotePlaypenClient;
+import io.quarkiverse.playpen.utils.InsecureSsl;
 import io.quarkus.builder.BuildException;
 import io.quarkus.deployment.IsRemoteDevClient;
 import io.quarkus.deployment.annotations.BuildStep;
@@ -139,8 +140,24 @@ public class RemotePlaypenProcessor {
         RemotePlaypenClient client = getRemotePlaypenClient(liveReload, config);
         if (client == null)
             return null;
+        Boolean selfSigned = client.isSelfSigned();
+        if (selfSigned == null) {
+            log.error("Invalid playpen url");
+            System.exit(1);
+        }
+        if (selfSigned) {
+            if (config.trustCert()) {
+                InsecureSsl.trustAllByDefault();
+            } else {
+                log.warn(
+                        "Playpen https url is self-signed. If you trust this endpoint, please specify quarkus.playpen.trust-cert=true");
+                System.exit(1);
+                return null;
+            }
+        }
         // check credentials
         if (!client.challenge()) {
+            System.exit(1);
             return null;
         }
 
@@ -155,6 +172,7 @@ public class RemotePlaypenProcessor {
                     cleanupRemote = true;
                 } else {
                     log.error("Failed to create remote playpen container.");
+                    System.exit(1);
                     return null;
                 }
             }
@@ -164,6 +182,7 @@ public class RemotePlaypenProcessor {
         boolean status = client.connect(cleanupRemote);
         if (!status) {
             log.error("Failed to connect to playpen");
+            System.exit(1);
             return null;
         }
         log.info("Connected to playpen!");
