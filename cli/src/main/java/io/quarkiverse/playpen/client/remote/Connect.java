@@ -4,12 +4,12 @@ import static picocli.CommandLine.Help.Visibility.NEVER;
 
 import java.util.concurrent.Callable;
 
-import io.quarkiverse.playpen.utils.InsecureSsl;
 import jakarta.inject.Inject;
 
 import io.quarkiverse.playpen.client.OnShutdown;
 import io.quarkiverse.playpen.client.RemotePlaypenClient;
 import io.quarkiverse.playpen.client.util.BaseCommand;
+import io.quarkiverse.playpen.utils.InsecureSsl;
 import io.quarkiverse.playpen.utils.MessageIcons;
 import picocli.CommandLine;
 
@@ -23,6 +23,10 @@ public class Connect extends BaseCommand implements Callable<Integer> {
     @CommandLine.Option(names = {
             "--host" }, required = true, description = "host[:port] of remote playpen", showDefaultValue = NEVER)
     protected String host;
+
+    @CommandLine.Option(names = {
+            "--trustCert" }, defaultValue = "false", description = "port of local process", showDefaultValue = CommandLine.Help.Visibility.ALWAYS)
+    private boolean trustCert;
 
     @CommandLine.Parameters(index = "0", description = "URI of playpen server")
     protected String uri;
@@ -44,17 +48,16 @@ public class Connect extends BaseCommand implements Callable<Integer> {
         RemotePlaypenClient client = new RemotePlaypenClient(url, credentials, configString);
         Boolean selfSigned = client.isSelfSigned();
         if (selfSigned == null) {
-            log.error("Invalid playpen url");
-            System.exit(1);
+            output.error("Invalid playpen url");
+            return CommandLine.ExitCode.SOFTWARE;
         }
         if (selfSigned) {
-            if (config.trustCert()) {
+            if (trustCert) {
                 InsecureSsl.trustAllByDefault();
             } else {
-                log.warn(
-                        "Playpen https url is self-signed. If you trust this endpoint, please specify quarkus.playpen.trust-cert=true");
-                System.exit(1);
-                return null;
+                output.warn(
+                        "Playpen https url is self-signed. If you trust this endpoint, please specify --trustCert=true");
+                return CommandLine.ExitCode.SOFTWARE;
             }
         }
         client.challenge();

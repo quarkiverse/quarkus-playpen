@@ -36,38 +36,41 @@ public class RemotePlaypenProcessor {
     public ArtifactResultBuildItem command(LiveReloadConfig liveReload, PlaypenConfig config, JarBuildItem jar)
             throws Exception {
         if (config.command().isPresent()) {
+            RemotePlaypenClient client = getRemotePlaypenClient(liveReload, config);
+            if (client == null) {
+                return null;
+            }
+            testSelfSigned(config, client);
             String command = config.command().get();
             if ("remote-create-manual".equalsIgnoreCase(command)) {
                 log.info("Creating remote playpen container, this may take awhile...");
-                createRemote(liveReload, config, jar, true);
+                createRemote(client, jar, true);
             } else if ("remote-create".equalsIgnoreCase(command)) {
                 log.info("Creating remote playpen container, this may take awhile...");
-                if (createRemote(liveReload, config, jar, false)) {
-                    remoteGet(liveReload, config);
+                if (createRemote(client, jar, false)) {
+                    remoteGet(client);
                 } else {
                     log.error("Failed to create remote playpen container!");
                 }
             } else if ("remote-delete".equalsIgnoreCase(command)) {
                 log.info("Deleting remote playpen container, this may take awhile...");
-                deleteRemote(liveReload, config);
+                deleteRemote(client);
             } else if ("remote-exists".equalsIgnoreCase(command)) {
-                remoteExists(liveReload, config);
+                remoteExists(client);
             } else if ("remote-get".equalsIgnoreCase(command)) {
-                remoteGet(liveReload, config);
+                remoteGet(client);
             } else if ("remote-download".equalsIgnoreCase(command)) {
-                downloadRemote(liveReload, config, jar);
+                downloadRemote(client, jar);
             } else {
                 log.error("Unknown remote playpen command: " + command);
+                System.exit(1);
             }
             System.exit(0);
         }
         return null;
     }
 
-    private void remoteExists(LiveReloadConfig liveReload, PlaypenConfig config) throws Exception {
-        RemotePlaypenClient client = getRemotePlaypenClient(liveReload, config);
-        if (client == null)
-            return;
+    private void remoteExists(RemotePlaypenClient client) throws Exception {
         if (client.remotePlaypenExists()) {
             log.info("Remote playpen exists");
         } else {
@@ -75,10 +78,7 @@ public class RemotePlaypenProcessor {
         }
     }
 
-    private void remoteGet(LiveReloadConfig liveReload, PlaypenConfig config) throws Exception {
-        RemotePlaypenClient client = getRemotePlaypenClient(liveReload, config);
-        if (client == null)
-            return;
+    private void remoteGet(RemotePlaypenClient client) throws Exception {
         String host = client.get();
         if (host == null) {
             log.info("Remote playpen does not exist");
@@ -87,19 +87,12 @@ public class RemotePlaypenProcessor {
         }
     }
 
-    private void downloadRemote(LiveReloadConfig liveReload, PlaypenConfig config, JarBuildItem jar) throws Exception {
-        RemotePlaypenClient client = getRemotePlaypenClient(liveReload, config);
-        if (client == null)
-            return;
+    private void downloadRemote(RemotePlaypenClient client, JarBuildItem jar) throws Exception {
         client.download(jar.getPath().getParent().getParent().resolve("download.zip"));
-
     }
 
-    private boolean createRemote(LiveReloadConfig liveReload, PlaypenConfig config, JarBuildItem jar, boolean manual)
+    private boolean createRemote(RemotePlaypenClient client, JarBuildItem jar, boolean manual)
             throws Exception {
-        RemotePlaypenClient client = getRemotePlaypenClient(liveReload, config);
-        if (client == null)
-            return false;
         if (client.remotePlaypenExists()) {
             log.info("Remote playpen already exists, delete it first if you want to create a new one");
             return false;
@@ -112,12 +105,8 @@ public class RemotePlaypenProcessor {
         return client.create(zip, manual);
     }
 
-    private void deleteRemote(LiveReloadConfig liveReload, PlaypenConfig config)
+    private void deleteRemote(RemotePlaypenClient client)
             throws Exception {
-
-        RemotePlaypenClient client = getRemotePlaypenClient(liveReload, config);
-        if (client == null)
-            return;
         if (client.delete()) {
             log.info("Deletion of remote playpen container succeeded!");
         } else {
@@ -140,21 +129,7 @@ public class RemotePlaypenProcessor {
         RemotePlaypenClient client = getRemotePlaypenClient(liveReload, config);
         if (client == null)
             return null;
-        Boolean selfSigned = client.isSelfSigned();
-        if (selfSigned == null) {
-            log.error("Invalid playpen url");
-            System.exit(1);
-        }
-        if (selfSigned) {
-            if (config.trustCert()) {
-                InsecureSsl.trustAllByDefault();
-            } else {
-                log.warn(
-                        "Playpen https url is self-signed. If you trust this endpoint, please specify quarkus.playpen.trust-cert=true");
-                System.exit(1);
-                return null;
-            }
-        }
+        testSelfSigned(config, client);
         // check credentials
         if (!client.challenge()) {
             System.exit(1);
@@ -209,6 +184,23 @@ public class RemotePlaypenProcessor {
             callDisconnect(client, finalCleanup);
         }));
         return null;
+    }
+
+    private static void testSelfSigned(PlaypenConfig config, RemotePlaypenClient client) {
+        Boolean selfSigned = client.isSelfSigned();
+        if (selfSigned == null) {
+            log.error("Invalid playpen url");
+            System.exit(1);
+        }
+        if (selfSigned) {
+            if (config.trustCert()) {
+                InsecureSsl.trustAllByDefault();
+            } else {
+                log.warn(
+                        "Playpen https url is self-signed. If you trust this endpoint, please specify quarkus.playpen.trust-cert=true");
+                System.exit(1);
+            }
+        }
     }
 
     private boolean isThreadAlive(String search) {
