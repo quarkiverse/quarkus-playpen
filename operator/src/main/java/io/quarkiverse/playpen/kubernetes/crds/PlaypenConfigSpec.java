@@ -1,4 +1,4 @@
-package io.quarkiverse.playpen.operator;
+package io.quarkiverse.playpen.kubernetes.crds;
 
 import java.util.Map;
 

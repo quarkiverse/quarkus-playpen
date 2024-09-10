@@ -13,6 +13,7 @@
   <name>Playpen - Parent</name>
   <modules>
     <module>core</module>
+    <module>kubernetes</module>
     <module>proxy</module>
     <module>cli</module>
     <module>operator</module>
@@ -46,6 +47,11 @@
       <dependency>
         <groupId>io.quarkiverse.playpen</groupId>
         <artifactId>playpen-core</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.quarkiverse.playpen</groupId>
+        <artifactId>kubernetes-playpen-core</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>

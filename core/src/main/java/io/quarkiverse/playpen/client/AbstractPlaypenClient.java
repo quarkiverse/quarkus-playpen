@@ -73,12 +73,9 @@ public abstract class AbstractPlaypenClient {
         }
     }
 
-    public void initUri(PlaypenConnectionConfig config) {
+    public void initUri(LocalPlaypenConnectionConfig config) {
         log.debug("Start playpen ");
-        clientApiPath = config.prefix;
-        if (config.prefix == null) {
-            clientApiPath = "";
-        }
+        clientApiPath = (config.prefix == null ? "" : config.prefix) + PlaypenProxyConstants.LOCAL_API_PATH + "/" + config.who;
         this.uri = clientApiPath + "/connect";
         String queryParams = null;
         if (config.queries != null) {

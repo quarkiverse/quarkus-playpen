@@ -1,50 +1,44 @@
 package io.quarkiverse.playpen.client;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiConsumer;
 
-public class RemotePlaypenConnectionConfig {
+public class RemotePlaypenConnectionConfig extends BasePlaypenConnectionConfig {
     public String host;
-    public List<String> headers;
-    public List<String> paths;
-    public List<String> queries;
-    public boolean useClientIp;
-    public String clientIp;
-    public boolean global;
+    public Boolean cleanup;
 
-    /**
-     * from name value pairs separated by ';'
-     *
-     * @param string
-     * @return
-     */
-    public static RemotePlaypenConnectionConfig fromNameValue(String string) {
-        RemotePlaypenConnectionConfig playpen = new RemotePlaypenConnectionConfig();
-        for (String pair : string.split(";")) {
-            int idx = pair.indexOf("=");
-            String key = pair.substring(0, idx);
-            String value = idx == -1 ? null : pair.substring(idx + 1);
-            if ("query".equals(key)) {
-                if (playpen.queries == null)
-                    playpen.queries = new ArrayList<>();
-                playpen.queries.add(value);
-            } else if ("path".equals(key)) {
-                if (playpen.paths == null)
-                    playpen.paths = new ArrayList<>();
-                playpen.paths.add(value);
-            } else if ("header".equals(key)) {
-                if (playpen.headers == null)
-                    playpen.headers = new ArrayList<>();
-                playpen.headers.add(value);
-            } else if ("clientIp".equals(key)) {
-                playpen.useClientIp = true;
-                playpen.clientIp = value;
-            } else if ("host".equals(key)) {
-                playpen.host = value;
-            } else if ("globalSession".equals(key)) {
-                playpen.global = true;
-            }
+    @Override
+    public String connectionQueryParams() {
+        String queryParams = super.connectionQueryParams();
+        if (host != null) {
+            queryParams = addQueryParam(queryParams, "host=" + host);
         }
-        return playpen;
+        if (cleanup != null) {
+            queryParams = addQueryParam(queryParams, "cleanup=" + cleanup.booleanValue());
+        }
+        return queryParams;
+    }
+
+    public static RemotePlaypenConnectionConfig fromCli(String cli) {
+        return fromCli(cli, null);
+    }
+
+    public static RemotePlaypenConnectionConfig fromCli(String cli, BiConsumer<String, List<String>> extension) {
+        RemotePlaypenConnectionConfig config = new RemotePlaypenConnectionConfig();
+        parse(config, cli, (key, val) -> {
+            if (key.equals("host")) {
+                if (!val.isEmpty())
+                    config.host = val.get(0);
+            } else if (key.equals("cleanup")) {
+                if (val.isEmpty()) {
+                    config.cleanup = true;
+                } else {
+                    config.cleanup = "true".equalsIgnoreCase(val.get(0));
+                }
+            } else if (extension != null) {
+                extension.accept(key, val);
+            }
+        });
+        return config;
     }
 }

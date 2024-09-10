@@ -2,13 +2,14 @@ package io.quarkiverse.playpen.deployment;
 
 import java.util.Optional;
 
+import io.quarkus.runtime.annotations.ConfigDocSection;
 import io.quarkus.runtime.annotations.ConfigPhase;
 import io.quarkus.runtime.annotations.ConfigRoot;
 import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithDefault;
 
 @ConfigRoot(phase = ConfigPhase.BUILD_TIME)
-@ConfigMapping(prefix = "quarkus.playpen")
+@ConfigMapping(prefix = "playpen")
 public interface PlaypenConfig {
     /**
      * Only usable with quarkus dev mode and the quarkus.playpen.command property is NOT set.
@@ -82,11 +83,6 @@ public interface PlaypenConfig {
     Optional<String> remote();
 
     /**
-     * Credentials for creating a connection. Secret or "username:password".
-     */
-    Optional<String> credentials();
-
-    /**
      * Must set quarkus.playpen.remote. If this variable isn't a full connection url
      * you must also specify quarkus.live-reload.url.
      *
@@ -100,14 +96,6 @@ public interface PlaypenConfig {
     Optional<String> command();
 
     /**
-     * When url is https and certs are self-signed
-     * connection will abort unless trustCert == true
-     *
-     */
-    @WithDefault("false")
-    boolean trustCert();
-
-    /**
      * If true, quarkus will not connect to local playpen on boot. Connection would have
      * to be done manually from the recorder method.
      *
@@ -115,5 +103,14 @@ public interface PlaypenConfig {
      */
     @WithDefault("false")
     boolean manualStart();
+
+    /**
+     * Kubernetes client connection for establishing
+     * port forwards to playpen
+     *
+     * @return
+     */
+    @ConfigDocSection(generated = true)
+    PlaypenKubernetesClientBuildConfig kubernetesClient();
 
 }

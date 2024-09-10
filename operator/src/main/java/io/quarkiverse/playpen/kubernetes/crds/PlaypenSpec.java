@@ -1,4 +1,4 @@
-package io.quarkiverse.playpen.operator;
+package io.quarkiverse.playpen.kubernetes.crds;
 
 public class PlaypenSpec {
     private String config;

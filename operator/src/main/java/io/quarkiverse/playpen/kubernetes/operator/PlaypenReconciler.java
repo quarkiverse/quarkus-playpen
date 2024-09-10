@@ -1,4 +1,4 @@
-package io.quarkiverse.playpen.operator;
+package io.quarkiverse.playpen.kubernetes.operator;
 
 import static io.javaoperatorsdk.operator.api.reconciler.Constants.WATCH_ALL_NAMESPACES;
 
@@ -43,6 +43,12 @@ import io.javaoperatorsdk.operator.api.reconciler.DeleteControl;
 import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 import io.quarkiverse.operatorsdk.annotations.CSVMetadata;
+import io.quarkiverse.playpen.kubernetes.crds.AuthenticationType;
+import io.quarkiverse.playpen.kubernetes.crds.ExposePolicy;
+import io.quarkiverse.playpen.kubernetes.crds.Playpen;
+import io.quarkiverse.playpen.kubernetes.crds.PlaypenConfig;
+import io.quarkiverse.playpen.kubernetes.crds.PlaypenConfigSpec;
+import io.quarkiverse.playpen.kubernetes.crds.PlaypenStatus;
 
 @ControllerConfiguration(namespaces = WATCH_ALL_NAMESPACES, name = "playpen")
 @CSVMetadata(displayName = "Playpen operator", description = "Setup of Playpen for a specific service")

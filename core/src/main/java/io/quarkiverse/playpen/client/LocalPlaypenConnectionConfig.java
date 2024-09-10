@@ -3,24 +3,51 @@ package io.quarkiverse.playpen.client;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiConsumer;
 
-public class PlaypenConnectionConfig {
+public class LocalPlaypenConnectionConfig extends BasePlaypenConnectionConfig {
     public String host;
-    public int port;
+    public int port = -1;
     public boolean ssl;
-    public List<String> headers;
-    public List<String> paths;
-    public List<String> queries;
-    public String error;
-    public boolean useClientIp;
-    public String clientIp;
-    public String credentials;
     public String prefix;
-    public boolean isGlobal;
-    public boolean trustCert;
 
-    public static PlaypenConnectionConfig fromUri(String uriString) {
-        PlaypenConnectionConfig playpen = new PlaypenConnectionConfig();
+    public static LocalPlaypenConnectionConfig fromCli(String cli) {
+        return fromCli(cli, null);
+    }
+
+    public static LocalPlaypenConnectionConfig fromCli(String cli, BiConsumer<String, List<String>> extension) {
+        LocalPlaypenConnectionConfig config = new LocalPlaypenConnectionConfig();
+        parse(config, cli, extension);
+        if (config.error != null) {
+            return config;
+        } else {
+            setHttpLocation(config);
+        }
+        return config;
+    }
+
+    protected static void setHttpLocation(LocalPlaypenConnectionConfig playpen) {
+        String target = playpen.connection;
+        if (target.startsWith("http")) {
+            String uriString = target;
+            URI uri = null;
+            try {
+                uri = new URI(uriString);
+            } catch (Exception e) {
+                playpen.error = "playpen URI value is bad";
+            }
+            playpen.host = uri.getHost();
+            playpen.ssl = "https".equalsIgnoreCase(uri.getScheme());
+            playpen.port = uri.getPort() == -1 ? (playpen.ssl ? 443 : 80) : uri.getPort();
+            if (uri.getRawPath() != null) {
+                playpen.prefix = uri.getRawPath();
+            }
+        }
+
+    }
+
+    public static LocalPlaypenConnectionConfig fromUri(String uriString) {
+        LocalPlaypenConnectionConfig playpen = new LocalPlaypenConnectionConfig();
         URI uri = null;
         try {
             uri = new URI(uriString);

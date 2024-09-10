@@ -1,4 +1,4 @@
-package io.quarkiverse.playpen.operator;
+package io.quarkiverse.playpen.kubernetes.crds;
 
 import io.fabric8.kubernetes.api.model.Namespaced;
 import io.fabric8.kubernetes.client.CustomResource;

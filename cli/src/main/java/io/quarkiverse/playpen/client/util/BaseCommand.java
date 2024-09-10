@@ -1,6 +1,5 @@
 package io.quarkiverse.playpen.client.util;
 
-import io.quarkiverse.playpen.client.HelpOption;
 import picocli.CommandLine;
 
 public class BaseCommand {

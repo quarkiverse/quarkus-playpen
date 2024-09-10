@@ -33,8 +33,8 @@ public class PlaypenServerTest {
     public static final int CLIENT_API_PORT = 9093;
 
     private static final String APP_PROPS = "" +
-            "quarkus.playpen.local=http://localhost:9093/local/bill?global=true\n"
-            + "quarkus.playpen.manual-start=true\n";
+            "playpen.local=http://localhost:9093 -who bill -global\n"
+            + "playpen.manual-start=true\n";
 
     @RegisterExtension
     static final QuarkusUnitTest config = new QuarkusUnitTest()

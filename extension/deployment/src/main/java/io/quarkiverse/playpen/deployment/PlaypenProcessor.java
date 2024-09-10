@@ -4,14 +4,19 @@ import java.util.List;
 
 import org.jboss.logging.Logger;
 
+import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkiverse.playpen.LocalPlaypenRecorder;
-import io.quarkiverse.playpen.client.PlaypenClient;
-import io.quarkiverse.playpen.client.PlaypenConnectionConfig;
+import io.quarkiverse.playpen.client.DefaultLocalPlaypenClientManager;
+import io.quarkiverse.playpen.client.KubernetesLocalPlaypenClientManager;
+import io.quarkiverse.playpen.client.LocalPlaypenConnectionConfig;
+import io.quarkiverse.playpen.client.PortForward;
+import io.quarkiverse.playpen.utils.ProxyUtils;
 import io.quarkus.builder.BuildException;
 import io.quarkus.deployment.IsNormal;
 import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.annotations.ExecutionTime;
 import io.quarkus.deployment.annotations.Record;
+import io.quarkus.deployment.builditem.CuratedApplicationShutdownBuildItem;
 import io.quarkus.deployment.builditem.ServiceStartBuildItem;
 import io.quarkus.deployment.builditem.ShutdownContextBuildItem;
 import io.quarkus.vertx.core.deployment.CoreVertxBuildItem;
@@ -33,33 +38,31 @@ public class PlaypenProcessor {
             List<ServiceStartBuildItem> orderServicesFirst, // try to order this after service recorders
             ShutdownContextBuildItem shutdown,
             PlaypenConfig config,
-            LocalPlaypenRecorder proxy) {
+            LocalPlaypenRecorder proxy,
+            CuratedApplicationShutdownBuildItem curatedShutdown) {
         if (config.local().isPresent() && !config.command().isPresent()) {
-
-            PlaypenConnectionConfig playpen = PlaypenConnectionConfig.fromUri(config.local().get());
-            if (playpen.error != null) {
-                throw new RuntimeException(playpen.error);
-            }
-            if (config.trustCert()) {
-                playpen.trustCert = true;
-            } else {
-                Boolean selfSigned = PlaypenClient.isSelfSigned(config.local().get());
-                if (selfSigned == null) {
-                    log.error("Invalid playpen url");
+            LocalPlaypenConnectionConfig local = LocalPlaypenConnectionConfig.fromCli(config.local().get());
+            if (local.connection.startsWith("http")) {
+                DefaultLocalPlaypenClientManager manager = new DefaultLocalPlaypenClientManager(local);
+                if (!manager.checkHttpsCerts()) {
                     System.exit(1);
                 }
-                if (selfSigned) {
-                    if (!config.trustCert()) {
-                        log.warn(
-                                "Playpen https url is self-signed. If you trust this endpoint, please specify quarkus.playpen.trust-cert=true");
-                        System.exit(1);
-                    }
+            } else {
+                KubernetesClient client = KubernetesClientUtils.createClient(config.kubernetesClient());
+                KubernetesLocalPlaypenClientManager manager = new KubernetesLocalPlaypenClientManager(local, client);
+                try {
+                    PortForward portForward = manager.portForward();
+                    log.infov("Established port forward {0}", portForward.toString());
+                    curatedShutdown.addCloseTask(() -> {
+                        ProxyUtils.safeClose(portForward);
+                    }, true);
+                } catch (IllegalArgumentException e) {
+                    log.error("Failed to set up port forward to playpen: " + local.connection);
+                    log.error(e.getMessage());
+                    System.exit(1);
                 }
             }
-            if (config.credentials().isPresent()) {
-                playpen.credentials = config.credentials().get();
-            }
-            proxy.init(vertx.getVertx(), shutdown, playpen, config.manualStart());
+            proxy.init(vertx.getVertx(), shutdown, local, config.manualStart());
         }
     }
 

@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import io.quarkiverse.playpen.client.RemotePlaypenClient;
+import io.quarkiverse.playpen.client.RemotePlaypenConnectionConfig;
 import io.quarkiverse.playpen.server.QuarkusPlaypenServer;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.QuarkusTestProfile;
@@ -39,7 +40,8 @@ public class RemotePlaypenManagerTestCase {
     public void testUploadDownload() throws Exception {
 
         Assertions.assertNotNull(server);
-        RemotePlaypenClient client = new RemotePlaypenClient("http://localhost:8082/remote/bill", "", "");
+        RemotePlaypenConnectionConfig config = RemotePlaypenConnectionConfig.fromCli("http://localhost:8082");
+        RemotePlaypenClient client = new RemotePlaypenClient(config);
 
         File file = File.createTempFile("project", ".txt");
         FileOutputStream fos = new FileOutputStream(file);

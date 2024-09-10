@@ -6,19 +6,19 @@ import io.vertx.core.http.HttpClientOptions;
 public class PlaypenClientBuilder {
     private final PlaypenClient playpenClient;
     private final Vertx vertx;
-    private PlaypenConnectionConfig config;
+    private LocalPlaypenConnectionConfig config;
 
     PlaypenClientBuilder(Vertx vertx) {
         this.playpenClient = new PlaypenClient();
         this.vertx = vertx;
     }
 
-    public PlaypenClientBuilder playpen(String uri) {
-        this.config = PlaypenConnectionConfig.fromUri(uri);
+    public PlaypenClientBuilder playpen(String cli) {
+        this.config = LocalPlaypenConnectionConfig.fromCli(cli);
         return this;
     }
 
-    public PlaypenClientBuilder playpen(PlaypenConnectionConfig config) {
+    public PlaypenClientBuilder playpen(LocalPlaypenConnectionConfig config) {
         this.config = config;
         return this;
     }

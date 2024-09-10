@@ -17,40 +17,34 @@ import io.quarkiverse.playpen.utils.InsecureSsl;
 import io.quarkiverse.playpen.utils.PlaypenLogger;
 
 public class RemotePlaypenClient {
-    protected static final PlaypenLogger log = PlaypenLogger.getLogger(RemotePlaypenClient.class);
+    protected final PlaypenLogger log = PlaypenLogger.getLogger(RemotePlaypenClient.class);
 
-    protected String url;
-    protected String credentials;
-    protected String configString;
     protected String authHeader;
+    protected RemotePlaypenConnectionConfig config;
 
-    public RemotePlaypenClient(String url, String credentials, String configString) {
-        this.url = url;
-        this.credentials = credentials;
-        this.configString = configString;
-        if (this.configString == null)
-            this.configString = "";
+    public RemotePlaypenClient(RemotePlaypenConnectionConfig config) {
+        this.config = config;
+    }
+
+    public RemotePlaypenConnectionConfig getConfig() {
+        return config;
     }
 
     public boolean isConnectingToExistingHost() {
-        return configString.contains("host=");
+        return config.host != null;
     }
 
     public Boolean isSelfSigned() {
-        int idx = url.indexOf(PlaypenProxyConstants.REMOTE_API_PATH);
-        if (idx < 0) {
-            throw new RuntimeException("Illegal Url: " + url);
-        }
-        String version = url.substring(0, idx) + "/version";
+        String version = getBasePlaypenUrl() + "/version";
         return InsecureSsl.isSelfSigned(version);
     }
 
+    public String getBasePlaypenUrl() {
+        return config.connection;
+    }
+
     public boolean challenge() throws IOException {
-        int idx = url.indexOf(PlaypenProxyConstants.REMOTE_API_PATH);
-        if (idx < 0) {
-            throw new RuntimeException("Illegal Url: " + url);
-        }
-        String challenge = url.substring(0, idx) + "/challenge";
+        String challenge = getBasePlaypenUrl() + "/challenge";
         log.debug("Sending challenge " + challenge);
         URL httpUrl = new URL(challenge);
         HttpURLConnection connection = (HttpURLConnection) httpUrl.openConnection();
@@ -62,9 +56,9 @@ public class RemotePlaypenClient {
                 if (wwwAuthenticate == null) {
                     throw new RuntimeException("No www-authenticate header");
                 } else if (wwwAuthenticate.startsWith("Basic")) {
-                    setBasicAuth(credentials);
+                    setBasicAuth();
                 } else if (wwwAuthenticate.startsWith("Secret")) {
-                    setSecretAuth(credentials);
+                    setSecretAuth();
                 }
 
             } else if (responseCode >= 400) {
@@ -84,11 +78,11 @@ public class RemotePlaypenClient {
         return false;
     }
 
-    public void setSecretAuth(String secret) {
-        if (secret == null) {
+    public void setSecretAuth() {
+        if (config.credentials == null) {
             throw new RuntimeException("Credentials not set, must specify secret string");
         }
-        this.authHeader = "Secret " + secret;
+        this.authHeader = "Secret " + config.credentials;
     }
 
     public void setBasicAuth(String username, String password) {
@@ -96,15 +90,15 @@ public class RemotePlaypenClient {
         this.authHeader = "Basic " + Base64.getEncoder().encodeToString(valueToEncode.getBytes());
     }
 
-    public void setBasicAuth(String creds) {
-        if (creds == null) {
+    public void setBasicAuth() {
+        if (config.credentials == null) {
             throw new RuntimeException("Credentials not set, must be username:password string");
         }
-        int idx = creds.indexOf(':');
+        int idx = config.credentials.indexOf(':');
         if (idx < 0) {
             throw new RuntimeException("Credentials not set, must be username:password string");
         }
-        setBasicAuth(creds.substring(0, idx), creds.substring(idx + 1));
+        setBasicAuth(config.credentials.substring(0, idx), config.credentials.substring(idx + 1));
     }
 
     private void setAuth(HttpURLConnection connection) {
@@ -115,18 +109,12 @@ public class RemotePlaypenClient {
 
     public boolean connect(boolean cleanupRemote) throws Exception {
         String connectUrl = apiUrl("connect");
-        if (configString.isBlank()) {
-
-        } else {
-            connectUrl = connectUrl + "?" + configString;
+        String queryParams = config.connectionQueryParams();
+        if (config.cleanup == null) {
+            queryParams = BasePlaypenConnectionConfig.addQueryParam(queryParams, "cleanup=" + cleanupRemote);
         }
-        if (!configString.contains("cleanup=")) {
-            if (connectUrl.indexOf('?') == -1) {
-                connectUrl = connectUrl + "?" + "cleanup=" + cleanupRemote;
-            } else {
-                connectUrl = connectUrl + "&cleanup=" + cleanupRemote;
-            }
-        }
+        if (queryParams != null)
+            connectUrl = connectUrl + queryParams;
 
         log.debug("Connecting to " + connectUrl);
         URL httpUrl = new URL(connectUrl);
@@ -154,16 +142,11 @@ public class RemotePlaypenClient {
     }
 
     private String apiUrl(String action) {
+
         action = action.startsWith("/") ? action.substring(1) : action;
-        String connectUrl = url;
-        connectUrl = stripSlash(connectUrl);
+        String connectUrl = getBasePlaypenUrl() + PlaypenProxyConstants.REMOTE_API_PATH + "/" + config.who;
         connectUrl += "/_playpen_api/" + action;
         return connectUrl;
-    }
-
-    private static String stripSlash(String url) {
-        url = url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
-        return url;
     }
 
     public boolean disconnect() throws Exception {

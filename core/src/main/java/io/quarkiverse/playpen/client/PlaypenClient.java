@@ -20,11 +20,7 @@ public class PlaypenClient extends AbstractPlaypenClient {
     }
 
     public static Boolean isSelfSigned(String url) {
-        int idx = url.indexOf(PlaypenProxyConstants.LOCAL_API_PATH);
-        if (idx < 0) {
-            throw new RuntimeException("Illegal Url: " + url);
-        }
-        String version = url.substring(0, idx) + "/version";
+        String version = url + "/version";
         return InsecureSsl.isSelfSigned(version);
     }
 
@@ -59,7 +55,6 @@ public class PlaypenClient extends AbstractPlaypenClient {
         String responsePath = pollResponse.getHeader(PlaypenProxyConstants.RESPONSE_LINK);
         pollResponse.headers().forEach((key, val) -> {
             log.debugv("Poll response header: {0} : {1}", key, val);
-            log.debugf("Poll response header: {0} : {1}", key, val);
             int idx = key.indexOf(PlaypenProxyConstants.HEADER_FORWARD_PREFIX);
             if (idx == 0) {
                 String headerName = key.substring(PlaypenProxyConstants.HEADER_FORWARD_PREFIX.length());

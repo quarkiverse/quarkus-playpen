@@ -34,7 +34,7 @@ public class GreetingResource {
         String greeting = System.getenv("GREETING_ENV");
         String time = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
         if (greeting == null) greeting = "Greetings";
-        message += "<h1>It's Remote " + greeting + " " + user + " " + time + "</h1>";
+        message += "<h1>It is remote " + greeting + " " + user + " " + time + "</h1>";
         return message;
     }
 }

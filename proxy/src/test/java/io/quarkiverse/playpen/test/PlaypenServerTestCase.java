@@ -136,7 +136,7 @@ public class PlaypenServerTestCase {
     @Test
     public void testGlobalSession() throws Exception {
         PlaypenClient client = PlaypenClient.create(vertx)
-                .playpen("http://localhost:8082/local/bill?global=true")
+                .playpen("http://localhost:8082 -who bill -global")
                 .service("localhost", 9092, false)
                 .build();
         Assertions.assertTrue(client.start());

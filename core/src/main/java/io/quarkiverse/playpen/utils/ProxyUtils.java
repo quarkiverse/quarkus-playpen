@@ -1,5 +1,7 @@
 package io.quarkiverse.playpen.utils;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -7,6 +9,16 @@ import java.util.concurrent.TimeUnit;
 import io.vertx.core.Future;
 
 public class ProxyUtils {
+    public static void safeClose(Closeable closeable) {
+        if (closeable == null)
+            return;
+        try {
+            closeable.close();
+        } catch (IOException e) {
+
+        }
+    }
+
     public static <T> T await(long timeout, Future<T> future) {
         return await(timeout, future, "");
     }

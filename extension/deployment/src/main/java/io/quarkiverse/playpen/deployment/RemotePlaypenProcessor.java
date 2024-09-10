@@ -1,12 +1,23 @@
 package io.quarkiverse.playpen.deployment;
 
+import java.io.Closeable;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 import org.jboss.logging.Logger;
 
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.quarkiverse.playpen.client.KubernetesRemotePlaypenClient;
+import io.quarkiverse.playpen.client.PortForward;
 import io.quarkiverse.playpen.client.RemotePlaypenClient;
+import io.quarkiverse.playpen.client.RemotePlaypenConnectionConfig;
+import io.quarkiverse.playpen.server.PlaypenProxyConstants;
 import io.quarkiverse.playpen.utils.InsecureSsl;
+import io.quarkiverse.playpen.utils.ProxyUtils;
 import io.quarkus.builder.BuildException;
 import io.quarkus.deployment.IsRemoteDevClient;
 import io.quarkus.deployment.annotations.BuildStep;
@@ -33,10 +44,11 @@ public class RemotePlaypenProcessor {
     }
 
     @BuildStep
-    public ArtifactResultBuildItem command(LiveReloadConfig liveReload, PlaypenConfig config, JarBuildItem jar)
+    public ArtifactResultBuildItem command(CuratedApplicationShutdownBuildItem closeBuildItem, LiveReloadConfig liveReload,
+            PlaypenConfig config, JarBuildItem jar)
             throws Exception {
         if (config.command().isPresent()) {
-            RemotePlaypenClient client = getRemotePlaypenClient(liveReload, config);
+            RemotePlaypenClient client = getRemotePlaypenClient(closeBuildItem, liveReload, config);
             if (client == null) {
                 return null;
             }
@@ -63,9 +75,9 @@ public class RemotePlaypenProcessor {
                 downloadRemote(client, jar);
             } else {
                 log.error("Unknown remote playpen command: " + command);
-                System.exit(1);
+                terminate();
             }
-            System.exit(0);
+            exit();
         }
         return null;
     }
@@ -116,6 +128,8 @@ public class RemotePlaypenProcessor {
 
     static boolean alreadyInvoked = false;
 
+    static List<Closeable> closeables = new ArrayList<>();
+
     @BuildStep(onlyIf = IsRemoteDevClient.class)
     public ArtifactResultBuildItem playpen(LiveReloadConfig liveReload, PlaypenConfig config, JarBuildItem jar,
             CuratedApplicationShutdownBuildItem closeBuildItem)
@@ -126,79 +140,110 @@ public class RemotePlaypenProcessor {
         if (alreadyInvoked) {
             return null;
         }
-        RemotePlaypenClient client = getRemotePlaypenClient(liveReload, config);
+        RemotePlaypenClient client = getRemotePlaypenClient(closeBuildItem, liveReload, config);
         if (client == null)
             return null;
-        testSelfSigned(config, client);
-        // check credentials
-        if (!client.challenge()) {
-            System.exit(1);
-            return null;
-        }
-
-        boolean createRemote = !client.isConnectingToExistingHost();
         boolean cleanupRemote = false;
-        if (createRemote) {
-            if (client.remotePlaypenExists()) {
-                log.info("Remote playpen container already exists, not creating for session.");
-            } else {
-                log.info("Creating remote playpen container.  This may take awhile...");
-                if (createRemote(jar, false, client)) {
-                    cleanupRemote = true;
+        PortForward remoteForward = null;
+        try {
+            testSelfSigned(config, client);
+            // check credentials
+            if (!client.challenge()) {
+                terminate();
+                return null;
+            }
+
+            boolean createRemote = !client.isConnectingToExistingHost();
+            cleanupRemote = false;
+            if (createRemote) {
+                if (client.remotePlaypenExists()) {
+                    log.info("Remote playpen container already exists, not creating for session.");
                 } else {
-                    log.error("Failed to create remote playpen container.");
-                    System.exit(1);
-                    return null;
+                    log.info("Creating remote playpen container.  This may take awhile...");
+                    if (createRemote(jar, false, client)) {
+                        cleanupRemote = true;
+                    } else {
+                        log.error("Failed to create remote playpen container.");
+                        terminate();
+                        return null;
+                    }
                 }
             }
-        }
 
-        log.info("Connecting to playpen");
-        boolean status = client.connect(cleanupRemote);
-        if (!status) {
-            log.error("Failed to connect to playpen");
-            System.exit(1);
-            return null;
+            log.info("Connecting to playpen");
+            boolean status = client.connect(cleanupRemote);
+            if (!status) {
+                log.error("Failed to connect to playpen");
+                terminate();
+                return null;
+            }
+            log.info("Connected to playpen!");
+
+            alreadyInvoked = true;
+            if (client instanceof KubernetesRemotePlaypenClient) {
+                remoteForward = portForwardRemoteDevPod(liveReload, (KubernetesRemotePlaypenClient) client);
+                closeables.add(remoteForward);
+            }
+        } catch (Throwable e) {
+            log.error("Failed", e);
+            terminate();
         }
-        log.info("Connected to playpen!");
-        alreadyInvoked = true;
         boolean finalCleanup = cleanupRemote;
         //  Use a regular shutdown hook and make sure it runs after remove dev client is done
         //  otherwise developer will see stack traces
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            long wait = 10;
-            log.info("Waiting for quarkus:remote-dev to shutdown...");
-            for (int i = 0; i < 30 && isThreadAlive("Remote dev client thread"); i++) {
-                try {
-                    Thread.sleep(wait);
-                    if (wait < 1000)
-                        wait *= 10;
-                } catch (InterruptedException e) {
-
-                }
-            }
             try {
-                Thread.sleep(10);
-            } catch (InterruptedException e) {
+                long wait = 10;
+                log.info("Waiting for quarkus:remote-dev to shutdown...");
+                for (int i = 0; i < 30 && isThreadAlive("Remote dev client thread"); i++) {
+                    try {
+                        Thread.sleep(wait);
+                        if (wait < 1000)
+                            wait *= 10;
+                    } catch (InterruptedException e) {
+
+                    }
+                }
+                try {
+                    Thread.sleep(10);
+                } catch (InterruptedException e) {
+                }
+                callDisconnect(client, finalCleanup);
+            } finally {
+                endCloseables();
             }
-            callDisconnect(client, finalCleanup);
         }));
         return null;
+    }
+
+    private static void endCloseables() {
+        closeables.forEach(closeable -> ProxyUtils.safeClose(closeable));
+
+    }
+
+    private static void terminate() {
+        endCloseables();
+        System.exit(1);
+    }
+
+    private static void exit() {
+        endCloseables();
+        System.exit(0);
     }
 
     private static void testSelfSigned(PlaypenConfig config, RemotePlaypenClient client) {
         Boolean selfSigned = client.isSelfSigned();
         if (selfSigned == null) {
             log.error("Invalid playpen url");
-            System.exit(1);
+            terminate();
         }
         if (selfSigned) {
-            if (config.trustCert()) {
+            if (client.getConfig().trustCert) {
                 InsecureSsl.trustAllByDefault();
             } else {
                 log.warn(
                         "Playpen https url is self-signed. If you trust this endpoint, please specify quarkus.playpen.trust-cert=true");
-                System.exit(1);
+                terminate();
             }
         }
     }
@@ -239,28 +284,78 @@ public class RemotePlaypenProcessor {
         }
     }
 
-    private static RemotePlaypenClient getRemotePlaypenClient(LiveReloadConfig liveReload, PlaypenConfig config)
+    private static RemotePlaypenClient getRemotePlaypenClient(CuratedApplicationShutdownBuildItem shutdown,
+            LiveReloadConfig liveReload, PlaypenConfig config)
             throws Exception {
-        String url = config.remote().orElse("");
-        String queryString = "";
-        if (url.contains("://")) {
-            int idx = url.indexOf('?');
-            if (idx > -1) {
-                queryString = url.substring(idx + 1);
-                url = url.substring(0, idx);
+        RemotePlaypenConnectionConfig remoteConfig = RemotePlaypenConnectionConfig.fromCli(config.remote().get());
+        if (remoteConfig.connection == null && !liveReload.url.isPresent()) {
+            log.warn(
+                    "Cannot create remote playpen client.  playpen.remote must define a connection string, or, you must specify it within quarkus.live-reload.url");
+            return null;
+        } else if (remoteConfig.connection == null && liveReload.url.isPresent()) {
+            String url = liveReload.url.get();
+            int idx = url.indexOf(PlaypenProxyConstants.REMOTE_API_PATH);
+            if (idx > 0) {
+                url = url.substring(idx);
             }
-        } else {
-            if (!liveReload.url.isPresent()) {
-                log.warn(
-                        "Cannot create remote playpen client.  quarkus.playpen.remote is not a full uri and quarkus.live-reload.url is not set");
-                return null;
+            remoteConfig.connection = url;
+            return new RemotePlaypenClient(remoteConfig);
+        } else if (remoteConfig.connection != null && !remoteConfig.connection.startsWith("http")) {
+            // kubernetes connection
+            KubernetesClient client = KubernetesClientUtils.createClient(config.kubernetesClient());
+            KubernetesRemotePlaypenClient playpenClient = new KubernetesRemotePlaypenClient(client, remoteConfig);
+            try {
+                playpenClient.init();
+                log.infov("Established port forward {0}", playpenClient.getPlaypenForward().toString());
+            } catch (IllegalArgumentException e) {
+                log.error("Failed to set up port forward to playpen: " + remoteConfig.connection);
+                log.error(e.getMessage());
+                terminate();
             }
-            queryString = url;
-            url = liveReload.url.get();
+            closeables.add(playpenClient);
+            return playpenClient;
         }
-        String creds = config.credentials().orElse(liveReload.password.orElse(null));
 
-        RemotePlaypenClient client = new RemotePlaypenClient(url, creds, queryString);
-        return client;
+        return new RemotePlaypenClient(remoteConfig);
+    }
+
+    private static PortForward portForwardRemoteDevPod(LiveReloadConfig liveReload,
+            KubernetesRemotePlaypenClient playpenClient) {
+        if (liveReload.url.isPresent()) {
+            URL liveUrl = null;
+            try {
+                liveUrl = new URL(liveReload.url.get());
+                String host = liveUrl.getHost();
+                if (!"localhost".equalsIgnoreCase(host) && !"127.0.0.1".equals(host)) {
+                    log.warn(
+                            "If you are using kubernetes port forwarding, quarkus.live-reload.url must be localhost");
+                    terminate();
+                }
+                int port = liveUrl.getPort();
+                if (port == -1) {
+                    log.warn(
+                            "If you are using kubernetes port forwarding, quarkus.live-reload.url must define an unset port to forward to");
+                    terminate();
+                }
+                host = playpenClient.getConfig().host;
+                if (host == null) {
+                    host = "pod/" + playpenClient.getConfig().connection;
+                    host += "-playpen-" + playpenClient.getConfig().who;
+                }
+                log.info("Setting up port forward for liveReload url: " + host);
+                PortForward portForward = new PortForward(host);
+                try {
+                    portForward.forward(playpenClient.getClient(), port);
+                    log.infov("Established port forward {0}", portForward.toString());
+                } catch (IllegalArgumentException e) {
+                    log.error(e.getMessage());
+                    terminate();
+                }
+                return portForward;
+            } catch (MalformedURLException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return null;
     }
 }

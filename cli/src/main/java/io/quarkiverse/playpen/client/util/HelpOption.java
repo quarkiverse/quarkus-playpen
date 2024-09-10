@@ -1,4 +1,4 @@
-package io.quarkiverse.playpen.client;
+package io.quarkiverse.playpen.client.util;
 
 import picocli.CommandLine;
 
