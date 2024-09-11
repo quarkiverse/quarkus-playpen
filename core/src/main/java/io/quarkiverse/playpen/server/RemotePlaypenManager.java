@@ -9,6 +9,8 @@ public interface RemotePlaypenManager {
      */
     String get(String who);
 
+    String getHost(String host) throws IllegalArgumentException;
+
     boolean exists(String who);
 
     void create(String who, boolean copyEnv);

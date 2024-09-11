@@ -15,6 +15,7 @@ import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.quarkiverse.playpen.client.KubernetesHostEndpoint;
 
 public class KubernetesPlaypenManager implements RemotePlaypenManager {
     protected static final Logger log = Logger.getLogger(KubernetesPlaypenManager.class);
@@ -130,6 +131,13 @@ public class KubernetesPlaypenManager implements RemotePlaypenManager {
             return null;
         }
         return pod.getStatus().getPodIP() + ":8080";
+    }
+
+    @Override
+    public String getHost(String host) {
+        KubernetesHostEndpoint binding = new KubernetesHostEndpoint(host);
+        binding.locateBinding(client);
+        return binding.getClusterHostname() + ":" + binding.getPort();
     }
 
     @Override

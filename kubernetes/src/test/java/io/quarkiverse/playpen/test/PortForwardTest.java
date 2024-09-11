@@ -12,7 +12,7 @@ public class PortForwardTest {
     @Test
     public void testConstruction() {
         PortForward pf = new PortForward("greeting");
-        Assertions.assertEquals(PortForward.Type.service, pf.getType());
+        Assertions.assertEquals(PortForward.Type.unknown, pf.getType());
         Assertions.assertEquals("greeting", pf.getName());
         Assertions.assertEquals(-1, pf.getPort());
         Assertions.assertNull(pf.getNamespace());
@@ -22,6 +22,30 @@ public class PortForwardTest {
         Assertions.assertEquals("greeting", pf.getName());
         Assertions.assertEquals(-1, pf.getPort());
         Assertions.assertNull(pf.getNamespace());
+
+        pf = new PortForward("pod/greeting");
+        Assertions.assertEquals(PortForward.Type.pod, pf.getType());
+        Assertions.assertEquals("greeting", pf.getName());
+        Assertions.assertEquals(-1, pf.getPort());
+        Assertions.assertNull(pf.getNamespace());
+
+        pf = new PortForward("samples/greeting");
+        Assertions.assertEquals(PortForward.Type.unknown, pf.getType());
+        Assertions.assertEquals("greeting", pf.getName());
+        Assertions.assertEquals(-1, pf.getPort());
+        Assertions.assertEquals("samples", pf.getNamespace());
+
+        pf = new PortForward("pod/samples/greeting");
+        Assertions.assertEquals(PortForward.Type.pod, pf.getType());
+        Assertions.assertEquals("greeting", pf.getName());
+        Assertions.assertEquals(-1, pf.getPort());
+        Assertions.assertEquals("samples", pf.getNamespace());
+
+        pf = new PortForward("service/samples/greeting");
+        Assertions.assertEquals(PortForward.Type.service, pf.getType());
+        Assertions.assertEquals("greeting", pf.getName());
+        Assertions.assertEquals(-1, pf.getPort());
+        Assertions.assertEquals("samples", pf.getNamespace());
 
     }
 

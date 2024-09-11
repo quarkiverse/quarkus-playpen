@@ -27,6 +27,10 @@
             <artifactId>playpen-core</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.quarkiverse.playpen</groupId>
+            <artifactId>kubernetes-playpen-core</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-container-image-jib</artifactId>
         </dependency>

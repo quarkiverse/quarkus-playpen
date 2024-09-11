@@ -3,6 +3,7 @@ package io.quarkiverse.playpen.client;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -126,6 +127,8 @@ public class RemotePlaypenClient {
             if (responseCode == 204) {
                 log.debug("Successfully set up playpen session.");
                 return true;
+            } else if (responseCode == 400) {
+                log.error(extractError(connection));
             } else {
                 log.errorv("Failed to connect to remote playpen at {0}: {1}: ", connectUrl, responseCode);
             }
@@ -215,12 +218,7 @@ public class RemotePlaypenClient {
 
             int responseCode = connection.getResponseCode();
             if (responseCode == 200) {
-                BufferedInputStream bis = new BufferedInputStream(connection.getInputStream());
-                ByteArrayOutputStream buf = new ByteArrayOutputStream();
-                for (int result = bis.read(); result != -1; result = bis.read()) {
-                    buf.write((byte) result);
-                }
-                return buf.toString("UTF-8");
+                return extractOutput(connection);
             } else if (responseCode != 404) {
                 log.error("Response Failure: " + responseCode);
             }
@@ -235,6 +233,25 @@ public class RemotePlaypenClient {
             }
         }
         return null;
+    }
+
+    private static String extractOutput(HttpURLConnection connection) throws IOException {
+        InputStream inputStream = connection.getInputStream();
+        return extractOutput(inputStream);
+    }
+
+    private static String extractError(HttpURLConnection connection) throws IOException {
+        InputStream inputStream = connection.getErrorStream();
+        return extractOutput(inputStream);
+    }
+
+    private static String extractOutput(InputStream inputStream) throws IOException {
+        BufferedInputStream bis = new BufferedInputStream(inputStream);
+        ByteArrayOutputStream buf = new ByteArrayOutputStream();
+        for (int result = bis.read(); result != -1; result = bis.read()) {
+            buf.write((byte) result);
+        }
+        return buf.toString("UTF-8");
     }
 
     /**

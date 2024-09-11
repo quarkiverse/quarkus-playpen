@@ -7,6 +7,11 @@ public class MockRemotePlaypenManager implements RemotePlaypenManager {
     }
 
     @Override
+    public String getHost(String host) {
+        return "";
+    }
+
+    @Override
     public boolean exists(String who) {
         return false;
     }

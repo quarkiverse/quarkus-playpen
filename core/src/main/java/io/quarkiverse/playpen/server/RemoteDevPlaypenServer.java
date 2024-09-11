@@ -565,14 +565,16 @@ public class RemoteDevPlaypenServer {
         String finalHost = host;
         log.debugv("Creating new session: {0} {1}", isGlobal, finalHost);
         master.auth.authenticate(ctx, () -> {
-            if (finalHost == null) {
-                // we are expecting that a pod was created with temporary remote playpen
-                vertx.executeBlocking(() -> {
+            vertx.executeBlocking(() -> {
+                if (finalHost == null) {
                     try {
+                        // we are expecting that a pod was created with temporary remote playpen
+                        log.debugv("Find playpen for session {0}", who);
                         String theHost = manager.get(who);
                         if (theHost == null) {
                             log.warnv("Remote playpen {0} does not exist", who);
-                            ctx.response().setStatusCode(404).end();
+                            ctx.response().setStatusCode(400).putHeader("Content-Type", "text/plain")
+                                    .end("Cannot resolve remote playpen endpoint");
                         }
                         setupSession(ctx, theHost, who, matchers, finalIsGlobal, finalCleanup);
                     } catch (Exception e) {
@@ -580,10 +582,24 @@ public class RemoteDevPlaypenServer {
                         ctx.response().setStatusCode(500).end();
                     }
                     return null;
-                });
-            } else {
-                setupSession(ctx, finalHost, who, matchers, finalIsGlobal, false);
-            }
+                } else {
+                    try {
+                        log.debugv("Resolve playpen for session {0}", finalHost);
+                        String clusterHost = manager.getHost(finalHost);
+                        log.debugv("clusterHost: " + clusterHost);
+                        setupSession(ctx, clusterHost, who, matchers, finalIsGlobal, false);
+                    } catch (IllegalArgumentException ill) {
+                        log.error("Cannot resolve host: " + ill.getMessage());
+                        ctx.response().setStatusCode(400).putHeader("Content-Type", "text/plain")
+                                .end(ill.getMessage());
+
+                    } catch (Exception e) {
+                        log.error("Failed to setup session", e);
+                        ctx.response().setStatusCode(500).end();
+                    }
+                    return null;
+                }
+            });
         });
     }
 
