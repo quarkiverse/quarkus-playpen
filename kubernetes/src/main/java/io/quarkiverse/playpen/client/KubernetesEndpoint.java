@@ -99,11 +99,13 @@ public class KubernetesEndpoint {
             service = client.services().withName(name).get();
             if (service != null) {
                 clusterHostname = name;
+                type = Type.service;
             }
         } else {
             service = client.services().inNamespace(namespace).withName(name).get();
             if (service != null) {
                 clusterHostname = name + "." + namespace;
+                type = Type.service;
             }
         }
     }
@@ -116,6 +118,7 @@ public class KubernetesEndpoint {
         }
         if (pod != null) {
             clusterHostname = pod.getStatus().getPodIP();
+            type = Type.pod;
         }
     }
 

@@ -20,11 +20,15 @@ public class RemotePlaypenConnectionConfig extends BasePlaypenConnectionConfig {
     }
 
     public static RemotePlaypenConnectionConfig fromCli(String cli) {
-        return fromCli(cli, null);
+        return fromCli(new RemotePlaypenConnectionConfig(), cli, null);
     }
 
-    public static RemotePlaypenConnectionConfig fromCli(String cli, BiConsumer<String, List<String>> extension) {
-        RemotePlaypenConnectionConfig config = new RemotePlaypenConnectionConfig();
+    public static RemotePlaypenConnectionConfig fromCli(RemotePlaypenConnectionConfig config, String cli) {
+        return fromCli(config, cli, null);
+    }
+
+    public static RemotePlaypenConnectionConfig fromCli(RemotePlaypenConnectionConfig config, String cli,
+            BiConsumer<String, List<String>> extension) {
         parse(config, cli, (key, val) -> {
             if (key.equals("host")) {
                 if (!val.isEmpty())

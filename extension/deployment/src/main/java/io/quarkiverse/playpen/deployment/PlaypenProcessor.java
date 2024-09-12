@@ -40,8 +40,21 @@ public class PlaypenProcessor {
             PlaypenConfig config,
             LocalPlaypenRecorder proxy,
             CuratedApplicationShutdownBuildItem curatedShutdown) {
-        if (config.local().isPresent() && !config.command().isPresent()) {
-            LocalPlaypenConnectionConfig local = LocalPlaypenConnectionConfig.fromCli(config.local().get());
+        if (config.local().connect().isPresent()) {
+            LocalPlaypenConnectionConfig local = new LocalPlaypenConnectionConfig();
+            if (config.endpoint().isPresent()) {
+                LocalPlaypenConnectionConfig.fromCli(local, config.endpoint().get());
+            }
+            String cli = config.local().connect().get();
+
+            // don't reload if -Dplaypen.local.connect and no value
+            if (!RemotePlaypenProcessor.isPropertyBlank(cli)) {
+                LocalPlaypenConnectionConfig.fromCli(local, cli);
+            }
+            if (local.who == null) {
+                log.error("playpen.local.connect -who must be set");
+                System.exit(1);
+            }
             if (local.connection.startsWith("http")) {
                 DefaultLocalPlaypenClientManager manager = new DefaultLocalPlaypenClientManager(local);
                 if (!manager.checkHttpsCerts()) {
@@ -62,7 +75,7 @@ public class PlaypenProcessor {
                     System.exit(1);
                 }
             }
-            proxy.init(vertx.getVertx(), shutdown, local, config.manualStart());
+            proxy.init(vertx.getVertx(), shutdown, local, config.local().manualStart());
         }
     }
 

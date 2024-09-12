@@ -37,9 +37,30 @@ public class RemotePlaypenProcessor {
 
     @BuildStep
     public ArtifactResultBuildItem check(PlaypenConfig config) throws Exception {
-        if (config.remote().isPresent() && config.local().isPresent()) {
-            throw new BuildException("Must pick either quarkus.playpen.local or .remote");
+        int count = 0;
+        if (config.local().connect().isPresent())
+            count++;
+        if (config.remote().connect().isPresent())
+            count++;
+        if (config.remote().create().isPresent())
+            count++;
+        if (config.remote().delete().isPresent())
+            count++;
+        if (config.remote().get().isPresent())
+            count++;
+        if (config.remote().exists().isPresent())
+            count++;
+        if (count > 1) {
+            throw new BuildException("Too many playpen commands");
+
         }
+        return null;
+    }
+
+    @BuildStep
+    public ArtifactResultBuildItem create(CuratedApplicationShutdownBuildItem closeBuildItem, LiveReloadConfig liveReload,
+            PlaypenConfig config, JarBuildItem jar)
+            throws Exception {
         return null;
     }
 
@@ -47,36 +68,30 @@ public class RemotePlaypenProcessor {
     public ArtifactResultBuildItem command(CuratedApplicationShutdownBuildItem closeBuildItem, LiveReloadConfig liveReload,
             PlaypenConfig config, JarBuildItem jar)
             throws Exception {
-        if (config.command().isPresent()) {
-            RemotePlaypenClient client = getRemotePlaypenClient(closeBuildItem, liveReload, config);
-            if (client == null) {
-                return null;
-            }
-            testSelfSigned(config, client);
-            String command = config.command().get();
-            if ("remote-create-manual".equalsIgnoreCase(command)) {
-                log.info("Creating remote playpen container, this may take awhile...");
-                createRemote(client, jar, true);
-            } else if ("remote-create".equalsIgnoreCase(command)) {
-                log.info("Creating remote playpen container, this may take awhile...");
-                if (createRemote(client, jar, false)) {
-                    remoteGet(client);
-                } else {
-                    log.error("Failed to create remote playpen container!");
-                }
-            } else if ("remote-delete".equalsIgnoreCase(command)) {
-                log.info("Deleting remote playpen container, this may take awhile...");
-                deleteRemote(client);
-            } else if ("remote-exists".equalsIgnoreCase(command)) {
-                remoteExists(client);
-            } else if ("remote-get".equalsIgnoreCase(command)) {
+        if (config.remote().create().isPresent()) {
+            RemotePlaypenClient client = getRemotePlaypenClient(config.remote().create().get(),
+                    closeBuildItem, liveReload, config);
+            log.info("Creating remote playpen container, this may take awhile...");
+            if (createRemote(client, jar, false)) {
                 remoteGet(client);
-            } else if ("remote-download".equalsIgnoreCase(command)) {
-                downloadRemote(client, jar);
             } else {
-                log.error("Unknown remote playpen command: " + command);
-                terminate();
+                log.error("Failed to create remote playpen container!");
             }
+            exit();
+        } else if (config.remote().delete().isPresent()) {
+            RemotePlaypenClient client = getRemotePlaypenClient(config.remote().delete().get(),
+                    closeBuildItem, liveReload, config);
+            deleteRemote(client);
+            exit();
+        } else if (config.remote().get().isPresent()) {
+            RemotePlaypenClient client = getRemotePlaypenClient(config.remote().get().get(),
+                    closeBuildItem, liveReload, config);
+            remoteGet(client);
+            exit();
+        } else if (config.remote().exists().isPresent()) {
+            RemotePlaypenClient client = getRemotePlaypenClient(config.remote().exists().get(),
+                    closeBuildItem, liveReload, config);
+            remoteExists(client);
             exit();
         }
         return null;
@@ -97,10 +112,6 @@ public class RemotePlaypenProcessor {
         } else {
             log.info("Remote playpen host: " + host);
         }
-    }
-
-    private void downloadRemote(RemotePlaypenClient client, JarBuildItem jar) throws Exception {
-        client.download(jar.getPath().getParent().getParent().resolve("download.zip"));
     }
 
     private boolean createRemote(RemotePlaypenClient client, JarBuildItem jar, boolean manual)
@@ -131,22 +142,22 @@ public class RemotePlaypenProcessor {
     static List<Closeable> closeables = new ArrayList<>();
 
     @BuildStep(onlyIf = IsRemoteDevClient.class)
-    public ArtifactResultBuildItem playpen(LiveReloadConfig liveReload, PlaypenConfig config, JarBuildItem jar,
+    public ArtifactResultBuildItem connect(LiveReloadConfig liveReload, PlaypenConfig config, JarBuildItem jar,
             CuratedApplicationShutdownBuildItem closeBuildItem)
             throws Exception {
-        if (!config.remote().isPresent() || config.command().isPresent()) {
+        if (!config.remote().connect().isPresent()) {
             return null;
         }
         if (alreadyInvoked) {
             return null;
         }
-        RemotePlaypenClient client = getRemotePlaypenClient(closeBuildItem, liveReload, config);
+        RemotePlaypenClient client = getRemotePlaypenClient(config.remote().connect().get(),
+                closeBuildItem, liveReload, config);
         if (client == null)
             return null;
         boolean cleanupRemote = false;
         PortForward remoteForward = null;
         try {
-            testSelfSigned(config, client);
             // check credentials
             if (!client.challenge()) {
                 terminate();
@@ -231,7 +242,7 @@ public class RemotePlaypenProcessor {
         System.exit(0);
     }
 
-    private static void testSelfSigned(PlaypenConfig config, RemotePlaypenClient client) {
+    private static void testSelfSigned(RemotePlaypenClient client) {
         Boolean selfSigned = client.isSelfSigned();
         if (selfSigned == null) {
             log.error("Invalid playpen url");
@@ -284,13 +295,30 @@ public class RemotePlaypenProcessor {
         }
     }
 
-    private static RemotePlaypenClient getRemotePlaypenClient(CuratedApplicationShutdownBuildItem shutdown,
+    private static RemotePlaypenClient getRemotePlaypenClient(String command, CuratedApplicationShutdownBuildItem shutdown,
             LiveReloadConfig liveReload, PlaypenConfig config)
             throws Exception {
-        RemotePlaypenConnectionConfig remoteConfig = RemotePlaypenConnectionConfig.fromCli(config.remote().get());
+        RemotePlaypenConnectionConfig remoteConfig = new RemotePlaypenConnectionConfig();
+        if (config.endpoint().isPresent()) {
+            String cli = config.endpoint().get();
+            if (!isPropertyBlank(cli)) {
+                RemotePlaypenConnectionConfig.fromCli(remoteConfig, cli);
+            }
+        }
+
+        // don't reload if -Dplaypen.local.xxxx and no value
+        if (!isPropertyBlank(command)) {
+            RemotePlaypenConnectionConfig.fromCli(remoteConfig, command);
+        }
+        if (remoteConfig.who == null) {
+            log.error("playpen.remote.command -who must be set");
+            terminate();
+        }
+        RemotePlaypenClient remoteClient = null;
         if (remoteConfig.connection == null && !liveReload.url.isPresent()) {
             log.warn(
                     "Cannot create remote playpen client.  playpen.remote must define a connection string, or, you must specify it within quarkus.live-reload.url");
+            terminate();
             return null;
         } else if (remoteConfig.connection == null && liveReload.url.isPresent()) {
             String url = liveReload.url.get();
@@ -299,7 +327,7 @@ public class RemotePlaypenProcessor {
                 url = url.substring(idx);
             }
             remoteConfig.connection = url;
-            return new RemotePlaypenClient(remoteConfig);
+            remoteClient = new RemotePlaypenClient(remoteConfig);
         } else if (remoteConfig.connection != null && !remoteConfig.connection.startsWith("http")) {
             // kubernetes connection
             KubernetesClient client = KubernetesClientUtils.createClient(config.kubernetesClient());
@@ -313,10 +341,16 @@ public class RemotePlaypenProcessor {
                 terminate();
             }
             closeables.add(playpenClient);
-            return playpenClient;
+            remoteClient = playpenClient;
+        } else {
+            remoteClient = new RemotePlaypenClient(remoteConfig);
         }
+        testSelfSigned(remoteClient);
+        return remoteClient;
+    }
 
-        return new RemotePlaypenClient(remoteConfig);
+    public static boolean isPropertyBlank(String command) {
+        return command == null || command.equals("true") || command.trim().isEmpty();
     }
 
     private static PortForward portForwardRemoteDevPod(LiveReloadConfig liveReload,
