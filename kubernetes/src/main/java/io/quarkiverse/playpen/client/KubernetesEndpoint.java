@@ -1,19 +1,23 @@
 package io.quarkiverse.playpen.client;
 
+import org.jboss.logging.Logger;
+
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.client.KubernetesClient;
 
-public class KubernetesEndpoint {
+public abstract class KubernetesEndpoint {
+    private static final Logger log = Logger.getLogger(KubernetesEndpoint.class);
+
     public enum Type {
         pod,
         service,
         unknown
     }
 
-    protected final String location;
+    protected final String endpoint;
     protected String name;
     protected String namespace;
     protected int port = -1;
@@ -22,9 +26,9 @@ public class KubernetesEndpoint {
     protected Service service;
     protected String clusterHostname;
 
-    public KubernetesEndpoint(String location) {
-        this.location = location;
-        String[] tokens = location.split("/");
+    public KubernetesEndpoint(String endpoint) {
+        this.endpoint = endpoint;
+        String[] tokens = endpoint.split("/");
         if (tokens.length == 1) { // <name>
             name = tokens[0];
         } else if (tokens.length == 2) {
@@ -43,15 +47,12 @@ public class KubernetesEndpoint {
             namespace = tokens[1];
             name = tokens[2];
         } else {
-            throw new IllegalArgumentException("Unknown endpoint: " + location);
+            throw new IllegalArgumentException("Unknown endpoint: " + endpoint);
         }
-        int idx = name.indexOf(':');
-        if (idx > 0) {
-            String tmp = name.substring(idx + 1);
-            port = Integer.parseInt(tmp);
-            this.name = name.substring(0, idx);
-        }
+        parsePort();
     }
+
+    protected abstract void parsePort();
 
     protected void setPortFromPod() {
         if (pod == null)
@@ -69,7 +70,7 @@ public class KubernetesEndpoint {
                 }
             }
             if (count > 1) {
-                throw new IllegalArgumentException("Please choose a port [" + ports + " ] for " + location);
+                throw new IllegalArgumentException("Please choose a container port from [" + ports + " ] for " + this);
             }
         }
     }
@@ -89,7 +90,7 @@ public class KubernetesEndpoint {
                 break;
         }
         if (clusterHostname == null) {
-            throw new IllegalArgumentException("Could not resolve endpoint: " + location);
+            throw new IllegalArgumentException("Could not resolve endpoint: " + this);
 
         }
     }
@@ -124,10 +125,6 @@ public class KubernetesEndpoint {
 
     public String getClusterHostname() {
         return clusterHostname;
-    }
-
-    public String getLocation() {
-        return location;
     }
 
     public String getName() {

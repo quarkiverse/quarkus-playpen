@@ -20,20 +20,26 @@ public class KubernetesHostEndpoint extends KubernetesEndpoint {
                     for (ServicePort p : service.getSpec().getPorts()) {
                         ports += " " + p.getPort();
                     }
-                    throw new IllegalArgumentException("Please chose a port [" + ports + " ] for endpoint " + location);
+                    throw new IllegalArgumentException("Please choose a port [" + ports + " ] for endpoint " + this);
                 }
                 port = service.getSpec().getPorts().get(0).getTargetPort().getIntVal();
             }
         }
     }
 
+    protected void parsePort() {
+        int idx = name.indexOf(':');
+        if (idx > 0) {
+            String tmp = name.substring(idx + 1);
+            port = Integer.parseInt(tmp);
+            this.name = name.substring(0, idx);
+        }
+    }
+
     @Override
     public String toString() {
-        return "{" +
-                "type=" + type +
-                ", namespace='" + namespace + '\'' +
-                ", name='" + name + '\'' +
-                ", port=" + port +
-                '}';
+        return (type == Type.unknown ? "" : type.name() + "/") +
+                (namespace == null ? "" : namespace + "/") + name +
+                (port == -1 ? "" : ":" + port);
     }
 }

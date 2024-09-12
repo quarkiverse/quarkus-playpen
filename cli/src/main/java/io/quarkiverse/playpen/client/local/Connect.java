@@ -1,6 +1,8 @@
 package io.quarkiverse.playpen.client.local;
 
 import java.io.Closeable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Callable;
 
 import jakarta.inject.Inject;
@@ -30,6 +32,9 @@ public class Connect extends BaseCommand implements Callable<Integer> {
             "--local-port" }, defaultValue = "8080", description = "port of local process", showDefaultValue = CommandLine.Help.Visibility.ALWAYS)
     private int localPort = 8080;
 
+    @CommandLine.Option(names = { "-port-forwards", "--port-forwards" }, description = "establish port forwards")
+    public List<String> portForwards;
+
     @Inject
     OnShutdown shutdown;
 
@@ -45,7 +50,7 @@ public class Connect extends BaseCommand implements Callable<Integer> {
             output.error(config.error);
             return CommandLine.ExitCode.SOFTWARE;
         }
-        PortForward portForward = null;
+        List<Closeable> closeables = new ArrayList<>();
         if (config.connection.startsWith("http")) {
             DefaultLocalPlaypenClientManager manager = new DefaultLocalPlaypenClientManager(config);
             if (!manager.checkHttpsCerts()) {
@@ -55,12 +60,28 @@ public class Connect extends BaseCommand implements Callable<Integer> {
             KubernetesClient client = new KubernetesClientBuilder().build();
             KubernetesLocalPlaypenClientManager manager = new KubernetesLocalPlaypenClientManager(config, client);
             try {
-                portForward = manager.portForward();
-                output.infov("Established port forward {0}", portForward.toString());
+                PortForward portForward = manager.portForward();
+                output.infov("Established playpen port forward {0}", portForward.toString());
+                closeables.add(portForward);
             } catch (IllegalArgumentException e) {
-                output.error("Failed to set up port forward to playpen: " + config.connection);
                 output.error(e.getMessage());
+                output.error("Maybe playpen does not exist?");
                 return CommandLine.ExitCode.SOFTWARE;
+            }
+            if (portForwards != null) {
+                try {
+                    portForwards.forEach(s -> {
+                        PortForward pf = new PortForward(s);
+                        pf.forward(client);
+                        output.infov("Established port forward {0}", pf.toString());
+                        closeables.add(pf);
+                    });
+                } catch (IllegalArgumentException e) {
+                    output.error("Could not establish port forward");
+                    output.error(e.getMessage());
+                    closeables.forEach(ProxyUtils::safeClose);
+                    return CommandLine.ExitCode.SOFTWARE;
+                }
             }
         }
         PlaypenClient client = PlaypenClient.create(vertx)
@@ -70,19 +91,18 @@ public class Connect extends BaseCommand implements Callable<Integer> {
                 .build();
         if (!client.start()) {
             output.error("Failed to start playpen client");
-            ProxyUtils.safeClose(portForward);
+            closeables.forEach(ProxyUtils::safeClose);
             return CommandLine.ExitCode.SOFTWARE;
         }
         output.info("Connected " + MessageIcons.SUCCESS_ICON);
         output.info("Hit @|bold <Control-C>|@ to exit and disconnect from playpen server");
-        Closeable finalPortForward = portForward;
         shutdown.await(() -> {
             output.info("");
             output.info("Disconnecting...");
             try {
                 client.shutdown();
             } finally {
-                ProxyUtils.safeClose(finalPortForward);
+                closeables.forEach(ProxyUtils::safeClose);
             }
             output.info("Disconnect success " + MessageIcons.SUCCESS_ICON);
         });
