@@ -18,4 +18,5 @@ public interface PlaypenProxyConstants {
     String QUARKUS_DEPLOYMENT_PATH = DEPLOYMENT_PATH + "/quarkus";
     String DEPLOYMENT_ZIP_PATH = "/deployment/zip";
     String CONNECT_PATH = "/connect";
+    String KEEPALIVE_PATH = "/keepalive";
 }

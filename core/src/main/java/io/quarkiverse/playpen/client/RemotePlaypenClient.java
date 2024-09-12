@@ -2,6 +2,7 @@ package io.quarkiverse.playpen.client;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -11,17 +12,23 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Base64;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import io.quarkiverse.playpen.server.PlaypenProxyConstants;
 import io.quarkiverse.playpen.server.auth.PlaypenAuth;
 import io.quarkiverse.playpen.utils.InsecureSsl;
 import io.quarkiverse.playpen.utils.PlaypenLogger;
 
-public class RemotePlaypenClient {
+public class RemotePlaypenClient implements Closeable {
     protected final PlaypenLogger log = PlaypenLogger.getLogger(RemotePlaypenClient.class);
 
     protected String authHeader;
     protected RemotePlaypenConnectionConfig config;
+    protected ScheduledExecutorService scheduler;
+    protected ScheduledFuture keepaliveFuture;
 
     public RemotePlaypenClient(RemotePlaypenConnectionConfig config) {
         this.config = config;
@@ -106,6 +113,56 @@ public class RemotePlaypenClient {
         if (authHeader != null) {
             connection.addRequestProperty(PlaypenAuth.AUTHORIZATION, authHeader);
         }
+    }
+
+    @Override
+    public void close() {
+        shutdownKeepalive();
+    }
+
+    public void shutdownKeepalive() {
+        if (scheduler != null) {
+            scheduler.shutdown();
+        }
+    }
+
+    public boolean isKeepaliveCancelled() {
+        return keepaliveFuture == null || keepaliveFuture.isCancelled();
+    }
+
+    public void keepalive(long periodSeconds) throws Exception {
+        scheduler = Executors.newScheduledThreadPool(1);
+        String connectUrl = apiUrl("keepalive");
+        log.debug("keepalive " + connectUrl);
+        URL httpUrl = new URL(connectUrl);
+        keepaliveFuture = scheduler.scheduleAtFixedRate(() -> {
+
+            try {
+                HttpURLConnection connection = (HttpURLConnection) httpUrl.openConnection();
+                try {
+                    connection.setRequestMethod("GET");
+                    setAuth(connection);
+                    int responseCode = connection.getResponseCode();
+                    if (responseCode == 204) {
+                        log.debug("Keepalive session success.");
+                    } else {
+                        throw new RuntimeException("Failed to invoke keepalive: " + responseCode);
+                    }
+                } catch (Exception ex) {
+                    log.errorv("Failure sending request for keepalive at {0}: {1}: ", connectUrl, ex.getMessage());
+                    throw new RuntimeException("Failed to send keepalive", ex);
+                } finally {
+                    try {
+                        connection.disconnect();
+                    } catch (Exception e) {
+
+                    }
+                }
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to connect for keepalive request", e);
+            }
+
+        }, periodSeconds, periodSeconds, TimeUnit.SECONDS);
     }
 
     public boolean connect(boolean cleanupRemote) throws Exception {

@@ -188,7 +188,7 @@ public class RemotePlaypenProcessor {
                 terminate();
                 return null;
             }
-            log.info("Connected to playpen!");
+            client.keepalive(5);
 
             alreadyInvoked = true;
             if (client instanceof KubernetesRemotePlaypenClient) {
@@ -204,6 +204,7 @@ public class RemotePlaypenProcessor {
         //  otherwise developer will see stack traces
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
+                client.shutdownKeepalive();
                 long wait = 10;
                 log.info("Waiting for quarkus:remote-dev to shutdown...");
                 for (int i = 0; i < 30 && isThreadAlive("Remote dev client thread"); i++) {
@@ -340,12 +341,12 @@ public class RemotePlaypenProcessor {
                 log.error(e.getMessage());
                 terminate();
             }
-            closeables.add(playpenClient);
             remoteClient = playpenClient;
         } else {
             remoteClient = new RemotePlaypenClient(remoteConfig);
         }
         testSelfSigned(remoteClient);
+        closeables.add(remoteClient);
         return remoteClient;
     }
 

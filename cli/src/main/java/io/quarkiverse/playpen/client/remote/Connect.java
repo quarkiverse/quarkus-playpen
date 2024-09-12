@@ -72,8 +72,10 @@ public class Connect extends BaseCommand implements Callable<Integer> {
             output.info("Connected " + MessageIcons.SUCCESS_ICON);
             output.info("Hit @|bold <Control-C>|@ to exit and disconnect from playpen server");
             RemotePlaypenClient finalClient = client;
+            client.keepalive(5);
             shutdown.await(() -> {
                 try {
+                    finalClient.shutdownKeepalive();
                     output.info("");
                     output.info("Disconnecting...");
                     finalClient.disconnect();
@@ -81,16 +83,12 @@ public class Connect extends BaseCommand implements Callable<Integer> {
                 } catch (Exception e) {
                     output.error(e.getMessage());
                 } finally {
-                    if (finalClient instanceof KubernetesRemotePlaypenClient) {
-                        ((KubernetesRemotePlaypenClient) finalClient).getPlaypenForward().close();
-                    }
+                    finalClient.close();
                 }
             });
             return CommandLine.ExitCode.OK;
         } else {
-            if (client instanceof KubernetesRemotePlaypenClient) {
-                ((KubernetesRemotePlaypenClient) client).getPlaypenForward().close();
-            }
+            client.close();
             return CommandLine.ExitCode.SOFTWARE;
         }
     }

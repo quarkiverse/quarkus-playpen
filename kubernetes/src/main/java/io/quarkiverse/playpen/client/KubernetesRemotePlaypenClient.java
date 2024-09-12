@@ -54,6 +54,7 @@ public class KubernetesRemotePlaypenClient extends RemotePlaypenClient implement
     }
 
     public void close() {
+        super.close();
         if (playpenForward != null) {
             playpenForward.close();
         }

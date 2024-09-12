@@ -5,6 +5,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 
 import org.jboss.logging.Logger;
@@ -107,6 +108,11 @@ public class RemoteDevPlaypenServer {
                 master.getPlaypenForDeletion(who);
                 close();
             }
+        }
+
+        public void keepalive(RoutingContext ctx) {
+            lastRequest = System.currentTimeMillis();
+            ctx.response().setStatusCode(204).end();
         }
 
         @Override
@@ -221,11 +227,24 @@ public class RemoteDevPlaypenServer {
                 .handler(this::deploymentFiles);
         clientApiRouter.route(clientApiPath + PlaypenProxyConstants.CONNECT_PATH).method(HttpMethod.POST)
                 .handler(this::clientConnect);
+        clientApiRouter.route(clientApiPath + PlaypenProxyConstants.KEEPALIVE_PATH).method(HttpMethod.GET)
+                .handler(this::keepalive);
         clientApiRouter.route(clientApiPath + PlaypenProxyConstants.CONNECT_PATH).method(HttpMethod.DELETE)
                 .handler(this::deleteClientConnection);
         clientApiRouter.route(clientApiPath + "/*").handler(routingContext -> routingContext.fail(404));
         clientApiRouter.route(master.config.clientPathPrefix + PlaypenProxyConstants.REMOTE_API_PATH + "/:who" + "/*")
                 .handler(this::liveCode);
+
+    }
+
+    public void keepalive(RoutingContext ctx) {
+        String who = ctx.pathParam("who");
+        RemoteDevPlaypen playpen = remoteSessions.get(who);
+        if (playpen != null) {
+            playpen.keepalive(ctx);
+        } else {
+            ctx.response().setStatusCode(404).end();
+        }
     }
 
     public void deployment(RoutingContext ctx) {
@@ -603,6 +622,8 @@ public class RemoteDevPlaypenServer {
         });
     }
 
+    protected Map<String, RemoteDevPlaypen> remoteSessions = new ConcurrentHashMap<>();
+
     private void setupSession(RoutingContext ctx, String host, String who, List<PlaypenMatcher> matchers, boolean finalIsGlobal,
             boolean deleteOnClose) {
         RemoteDevPlaypen newSession = new RemoteDevPlaypen(host, who, deleteOnClose);
@@ -613,6 +634,7 @@ public class RemoteDevPlaypenServer {
             newSession.matchers.add(new HeaderOrCookieMatcher(PlaypenProxyConstants.SESSION_HEADER, who));
             master.sessions.put(who, newSession);
         }
+        remoteSessions.put(who, newSession);
         ctx.response().setStatusCode(204).end();
     }
 
@@ -625,6 +647,7 @@ public class RemoteDevPlaypenServer {
         }
         log.debugv("Shutdown connection {0}", who);
         if (playpen instanceof RemoteDevPlaypen) {
+            remoteSessions.remove(who);
             ((RemoteDevPlaypen) playpen).close(() -> {
                 ctx.response().setStatusCode(204).end();
             });
