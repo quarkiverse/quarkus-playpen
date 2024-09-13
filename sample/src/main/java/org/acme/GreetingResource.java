@@ -23,8 +23,10 @@ import java.util.Base64;
 public class GreetingResource {
     @GET
     @Produces(MediaType.TEXT_HTML)
-    public String hello(@QueryParam("user") @DefaultValue("developer") String user) {
+    public String hello(@QueryParam("user") @DefaultValue("developer") String user) throws Exception {
         String message = "";
+
+        Thread.sleep(5000);
 
         String current = Playpen.current();
         if (current != null) {

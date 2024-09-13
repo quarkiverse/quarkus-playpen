@@ -9,6 +9,7 @@ public class LocalPlaypenConnectionConfig extends BasePlaypenConnectionConfig {
     public int port = -1;
     public boolean ssl;
     public String prefix;
+    public boolean onPoll;
 
     public static LocalPlaypenConnectionConfig fromCli(String cli) {
         LocalPlaypenConnectionConfig config = new LocalPlaypenConnectionConfig();
@@ -21,7 +22,13 @@ public class LocalPlaypenConnectionConfig extends BasePlaypenConnectionConfig {
 
     public static LocalPlaypenConnectionConfig fromCli(LocalPlaypenConnectionConfig config, String cli,
             BiConsumer<String, List<String>> extension) {
-        parse(config, cli, extension);
+        parse(config, cli, (key, val) -> {
+            if (key.equals("onPoll")) {
+                config.onPoll = val.isEmpty() || val.get(0).equals("true");
+            } else if (extension != null) {
+                extension.accept(key, val);
+            }
+        });
         if (config.error != null) {
             return config;
         } else {
@@ -48,6 +55,15 @@ public class LocalPlaypenConnectionConfig extends BasePlaypenConnectionConfig {
             }
         }
 
+    }
+
+    @Override
+    public String connectionQueryParams() {
+        String queryParams = super.connectionQueryParams();
+        if (onPoll) {
+            queryParams = addQueryParam(queryParams, "onPoll=true");
+        }
+        return queryParams;
     }
 
     @Override

@@ -76,13 +76,18 @@ public class PlaypenClient extends AbstractPlaypenClient {
     }
 
     private void deletePushResponse(String link) {
-        if (link == null) {
+        if (link == null || shutdown || !running) {
             workerOffline();
             return;
         }
-        proxyClient.request(HttpMethod.DELETE, link)
-                .onFailure(event -> workerOffline())
-                .onSuccess(request -> request.send().onComplete(event -> workerOffline()));
+        try {
+            proxyClient.request(HttpMethod.DELETE, link)
+                    .onFailure(event -> workerOffline())
+                    .onSuccess(request -> request.send().onComplete(event -> workerOffline()));
+        } catch (Exception e) {
+            // maybe client is closed
+            workerOffline();
+        }
     }
 
     private void handleServiceResponse(String responsePath, HttpClientResponse serviceResponse) {

@@ -24,7 +24,7 @@ public abstract class AbstractPlaypenClient {
     protected volatile boolean running = true;
     protected String pollLink;
     protected Phaser workerShutdown;
-    protected long pollTimeoutMillis;
+    protected long pollTimeoutMillis = 2000;
     protected boolean pollTimeoutOverriden;
     protected String uri;
     protected boolean connected;
@@ -77,25 +77,7 @@ public abstract class AbstractPlaypenClient {
         log.debug("Start playpen ");
         clientApiPath = (config.prefix == null ? "" : config.prefix) + PlaypenProxyConstants.LOCAL_API_PATH + "/" + config.who;
         this.uri = clientApiPath + "/connect";
-        String queryParams = null;
-        if (config.queries != null) {
-            for (String query : config.queries) {
-                queryParams = params(queryParams, "query=" + query);
-            }
-        }
-        if (config.headers != null) {
-            for (String header : config.headers) {
-                queryParams = params(queryParams, "header=" + header);
-            }
-        }
-        if (config.paths != null) {
-            for (String path : config.paths) {
-                queryParams = params(queryParams, "path=" + path);
-            }
-        }
-        if (config.isGlobal) {
-            queryParams = params(queryParams, "global=true");
-        }
+        String queryParams = config.connectionQueryParams();
         if (queryParams != null) {
             this.uri = this.uri + queryParams;
         }
@@ -195,8 +177,11 @@ public abstract class AbstractPlaypenClient {
                 log.debug("******* Connect request succeeded");
                 try {
                     this.pollLink = response.getHeader(PlaypenProxyConstants.POLL_LINK);
-                    if (!pollTimeoutOverriden)
-                        this.pollTimeoutMillis = Long.parseLong(response.getHeader(PlaypenProxyConstants.POLL_TIMEOUT));
+                    if (!pollTimeoutOverriden) {
+                        if (response.getHeader(PlaypenProxyConstants.POLL_TIMEOUT) != null) {
+                            this.pollTimeoutMillis = Long.parseLong(response.getHeader(PlaypenProxyConstants.POLL_TIMEOUT));
+                        }
+                    }
                     this.tokenHeader = response.getHeader(PlaypenAuth.BEARER_TOKEN_HEADER);
                     workerShutdown = new Phaser(1);
                     for (int i = 0; i < numPollers; i++) {
@@ -243,8 +228,11 @@ public abstract class AbstractPlaypenClient {
                 }
                 log.debug("Reconnect succeeded");
                 this.pollLink = response.getHeader(PlaypenProxyConstants.POLL_LINK);
-                if (!pollTimeoutOverriden)
-                    this.pollTimeoutMillis = Long.parseLong(response.getHeader(PlaypenProxyConstants.POLL_TIMEOUT));
+                if (!pollTimeoutOverriden) {
+                    if (response.getHeader(PlaypenProxyConstants.POLL_TIMEOUT) != null) {
+                        this.pollTimeoutMillis = Long.parseLong(response.getHeader(PlaypenProxyConstants.POLL_TIMEOUT));
+                    }
+                }
                 workerShutdown.register();
                 poll();
             });
@@ -253,9 +241,7 @@ public abstract class AbstractPlaypenClient {
 
     protected void logError(String msg) {
         log.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-        log.error("");
         log.error(msg);
-        log.error("");
         log.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
     }
 
@@ -357,7 +343,6 @@ public abstract class AbstractPlaypenClient {
         }
         try {
             running = false;
-            // delete session
             CountDownLatch latch = new CountDownLatch(1);
             if (connected) {
                 String uri = clientApiPath + "/connect";
@@ -380,8 +365,12 @@ public abstract class AbstractPlaypenClient {
             }
             try {
                 latch.await(1, TimeUnit.MINUTES);
+                long timeout = pollTimeoutMillis;
+                if (timeout == 0) {
+                    timeout = 2000;
+                }
                 int phase = workerShutdown.arriveAndDeregister();
-                phase = workerShutdown.awaitAdvanceInterruptibly(1, pollTimeoutMillis * 2, TimeUnit.MILLISECONDS);
+                phase = workerShutdown.awaitAdvanceInterruptibly(1, timeout * 2, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | TimeoutException ignored) {
             }
             ProxyUtils.await(1000, proxyClient.close());

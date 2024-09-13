@@ -122,6 +122,7 @@ public class LocalDevPlaypenServer {
         final Deque<Poller> awaitingPollers = new LinkedList<>();
         final Object pollLock = new Object();
         long pollTimeout = config.defaultPollTimeout;
+        boolean onPoll = false;
 
         List<PlaypenMatcher> matchers = new ArrayList<>();
 
@@ -281,8 +282,13 @@ public class LocalDevPlaypenServer {
             synchronized (pollLock) {
                 poller = awaitingPollers.poll();
                 if (poller == null) {
-                    log.debug("No pollers, enqueueing");
-                    awaiting.add(ctx);
+                    if (onPoll) {
+                        log.debug("No pollers, forwarding to original");
+                        master.proxy.handle(ctx.request());
+                    } else {
+                        log.debug("No pollers, enqueueing");
+                        awaiting.add(ctx);
+                    }
                     return;
                 }
                 poller.enqueued = false;
@@ -376,6 +382,7 @@ public class LocalDevPlaypenServer {
         // TODO: add security 401 protocol
         String who = ctx.pathParam("who");
         boolean isGlobal = false;
+        boolean onPoll = false;
         List<PlaypenMatcher> matchers = new ArrayList<>();
         for (Map.Entry<String, String> entry : ctx.queryParams()) {
             String key = entry.getKey();
@@ -390,7 +397,6 @@ public class LocalDevPlaypenServer {
                 }
                 matchers.add(new QueryParamMatcher(query, qvalue));
             } else if ("path".equals(key)) {
-                log.debug("********** Adding PathParam " + value);
                 matchers.add(new PathParamMatcher(value));
             } else if ("header".equals(key)) {
                 String header = value;
@@ -409,6 +415,8 @@ public class LocalDevPlaypenServer {
                 matchers.add(new ClientIpMatcher(ip));
             } else if ("global".equals(key) && "true".equals(value)) {
                 isGlobal = true;
+            } else if ("onPoll".equals(key)) {
+                onPoll = value == null ? true : "true".equals(value);
             }
         }
         // We close existing connections with same who if they are not LocalDevPlaypens
@@ -462,8 +470,10 @@ public class LocalDevPlaypenServer {
             }
         }
         boolean finalIsGlobal = isGlobal;
+        boolean finalOnPoll = onPoll;
         master.auth.authenticate(ctx, () -> {
             LocalDevPlaypen newSession = new LocalDevPlaypen(who);
+            newSession.onPoll = finalOnPoll;
             if (finalIsGlobal) {
                 master.globalSession = newSession;
             } else {

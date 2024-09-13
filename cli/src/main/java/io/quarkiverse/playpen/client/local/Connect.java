@@ -28,6 +28,10 @@ public class Connect extends BaseCommand implements Callable<Integer> {
     @CommandLine.Mixin
     protected ConnectMixin baseOptions;
 
+    @CommandLine.Option(names = {
+            "-onPoll", "--onPoll" }, defaultValue = "false", description = "route when client polling")
+    public boolean onPoll;
+
     @CommandLine.Option(names = { "-l",
             "--local-port" }, defaultValue = "8080", description = "port of local process", showDefaultValue = CommandLine.Help.Visibility.ALWAYS)
     private int localPort = 8080;
@@ -46,6 +50,7 @@ public class Connect extends BaseCommand implements Callable<Integer> {
 
         LocalPlaypenConnectionConfig config = new LocalPlaypenConnectionConfig();
         baseOptions.setConfig(config);
+        config.onPoll = onPoll;
         if (config.error != null) {
             output.error(config.error);
             return CommandLine.ExitCode.SOFTWARE;
