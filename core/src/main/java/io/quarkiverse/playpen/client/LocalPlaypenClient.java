@@ -11,11 +11,11 @@ import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpMethod;
 
-public class PlaypenClient extends AbstractPlaypenClient {
+public class LocalPlaypenClient extends AbstractLocalPlaypenClient {
 
     protected HttpClient serviceClient;
 
-    protected PlaypenClient() {
+    protected LocalPlaypenClient() {
 
     }
 
@@ -24,8 +24,8 @@ public class PlaypenClient extends AbstractPlaypenClient {
         return InsecureSsl.isSelfSigned(version);
     }
 
-    public static PlaypenClientBuilder create(Vertx vertx) {
-        return new PlaypenClientBuilder(vertx);
+    public static LocalPlaypenClientBuilder create(Vertx vertx) {
+        return new LocalPlaypenClientBuilder(vertx);
     }
 
     @Override

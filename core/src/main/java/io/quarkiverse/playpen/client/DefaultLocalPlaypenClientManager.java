@@ -18,7 +18,7 @@ public class DefaultLocalPlaypenClientManager implements LocalPlaypenClientManag
 
     @Override
     public boolean checkHttpsCerts() {
-        Boolean selfSigned = PlaypenClient.isSelfSigned(config.connection);
+        Boolean selfSigned = LocalPlaypenClient.isSelfSigned(config.connection);
         if (selfSigned == null) {
             log.error("Invalid playpen url");
             return false;

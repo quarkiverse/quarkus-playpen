@@ -11,9 +11,9 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.quarkiverse.playpen.client.DefaultLocalPlaypenClientManager;
 import io.quarkiverse.playpen.client.KubernetesLocalPlaypenClientManager;
+import io.quarkiverse.playpen.client.LocalPlaypenClient;
 import io.quarkiverse.playpen.client.LocalPlaypenConnectionConfig;
 import io.quarkiverse.playpen.client.OnShutdown;
-import io.quarkiverse.playpen.client.PlaypenClient;
 import io.quarkiverse.playpen.client.PortForward;
 import io.quarkiverse.playpen.client.util.BaseCommand;
 import io.quarkiverse.playpen.client.util.ConnectMixin;
@@ -89,7 +89,7 @@ public class Connect extends BaseCommand implements Callable<Integer> {
                 }
             }
         }
-        PlaypenClient client = PlaypenClient.create(vertx)
+        LocalPlaypenClient client = LocalPlaypenClient.create(vertx)
                 .playpen(config)
                 .service("localhost", localPort, false)
                 .credentials(config.credentials)

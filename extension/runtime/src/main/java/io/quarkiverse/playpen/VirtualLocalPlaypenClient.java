@@ -15,7 +15,7 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
-import io.quarkiverse.playpen.client.AbstractPlaypenClient;
+import io.quarkiverse.playpen.client.AbstractLocalPlaypenClient;
 import io.quarkiverse.playpen.server.PlaypenProxyConstants;
 import io.quarkus.netty.runtime.virtual.VirtualClientConnection;
 import io.quarkus.netty.runtime.virtual.VirtualResponseHandler;
@@ -35,8 +35,8 @@ import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.core.streams.impl.InboundBuffer;
 
-public class VirtualPlaypenClient extends AbstractPlaypenClient {
-    protected static final Logger log = Logger.getLogger(VirtualPlaypenClient.class);
+public class VirtualLocalPlaypenClient extends AbstractLocalPlaypenClient {
+    protected static final Logger log = Logger.getLogger(VirtualLocalPlaypenClient.class);
 
     protected Vertx vertx;
 
@@ -172,7 +172,7 @@ public class VirtualPlaypenClient extends AbstractPlaypenClient {
                                             workerOffline();
                                         }
                                     })
-                                    .onSuccess(VirtualPlaypenClient.this::handlePoll);
+                                    .onSuccess(VirtualLocalPlaypenClient.this::handlePoll);
                         });
             }
             if (!(msg instanceof FullHttpResponse)) { // writing response will be handled above if full

@@ -14,7 +14,7 @@ import io.vertx.core.http.HttpClientOptions;
 public class LocalPlaypenRecorder {
     private static final Logger log = Logger.getLogger(LocalPlaypenRecorder.class);
 
-    static VirtualPlaypenClient client;
+    static VirtualLocalPlaypenClient client;
     public static LocalPlaypenConnectionConfig config;
     static Vertx vertx;
 
@@ -35,7 +35,7 @@ public class LocalPlaypenRecorder {
     }
 
     public static void startSession(Vertx vertx, LocalPlaypenConnectionConfig config) {
-        client = new VirtualPlaypenClient();
+        client = new VirtualLocalPlaypenClient();
         HttpClientOptions options = new HttpClientOptions();
         options.setDefaultHost(config.host);
         options.setDefaultPort(config.port);

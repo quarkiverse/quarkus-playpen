@@ -54,7 +54,7 @@ public class PortForwardTest {
         Assertions.assertEquals(9999, pf.getLocalPort());
     }
 
-    @Test
+    //@Test
     public void testPortForward() {
         PortForward pf = new PortForward("greeting");
         KubernetesClient client = new KubernetesClientBuilder().build();

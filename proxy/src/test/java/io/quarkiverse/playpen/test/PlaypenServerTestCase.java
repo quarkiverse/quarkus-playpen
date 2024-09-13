@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import io.quarkiverse.playpen.client.PlaypenClient;
+import io.quarkiverse.playpen.client.LocalPlaypenClient;
 import io.quarkiverse.playpen.utils.ProxyUtils;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.QuarkusTestProfile;
@@ -135,7 +135,7 @@ public class PlaypenServerTestCase {
 
     @Test
     public void testGlobalSession() throws Exception {
-        PlaypenClient client = PlaypenClient.create(vertx)
+        LocalPlaypenClient client = LocalPlaypenClient.create(vertx)
                 .playpen("http://localhost:8082 -who bill -global")
                 .service("localhost", 9092, false)
                 .build();

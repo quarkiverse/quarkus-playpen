@@ -17,8 +17,8 @@ import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpClosedException;
 import io.vertx.core.http.HttpMethod;
 
-public abstract class AbstractPlaypenClient {
-    protected static final PlaypenLogger log = PlaypenLogger.getLogger(AbstractPlaypenClient.class);
+public abstract class AbstractLocalPlaypenClient {
+    protected static final PlaypenLogger log = PlaypenLogger.getLogger(AbstractLocalPlaypenClient.class);
     protected HttpClient proxyClient;
     protected int numPollers = 1;
     protected volatile boolean running = true;

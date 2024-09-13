@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import io.quarkiverse.playpen.client.PlaypenClient;
+import io.quarkiverse.playpen.client.LocalPlaypenClient;
 import io.quarkiverse.playpen.server.auth.PlaypenAuth;
 import io.quarkiverse.playpen.utils.ProxyUtils;
 import io.quarkus.test.junit.QuarkusTest;
@@ -113,7 +113,7 @@ public class OpenshiftBasicAuthTestCase {
 
     @Test
     public void testBadPassword() {
-        PlaypenClient client = PlaypenClient.create(vertx)
+        LocalPlaypenClient client = LocalPlaypenClient.create(vertx)
                 .playpen("http://localhost:8082 -who bill -global")
                 .service("localhost", 9092, false)
                 .basicAuth("bill", "badpassword")
@@ -123,7 +123,7 @@ public class OpenshiftBasicAuthTestCase {
 
     @Test
     public void testBadUser() {
-        PlaypenClient client = PlaypenClient.create(vertx)
+        LocalPlaypenClient client = LocalPlaypenClient.create(vertx)
                 .playpen("http://localhost:8082 -who bill -global")
                 .service("localhost", 9092, false)
                 .basicAuth("john", "geheim")
@@ -133,7 +133,7 @@ public class OpenshiftBasicAuthTestCase {
 
     @Test
     public void testGlobalSession() throws Exception {
-        PlaypenClient client = PlaypenClient.create(vertx)
+        LocalPlaypenClient client = LocalPlaypenClient.create(vertx)
                 .playpen("http://localhost:8082 -who bill -global")
                 .service("localhost", 9092, false)
                 .credentials("bill:geheim")

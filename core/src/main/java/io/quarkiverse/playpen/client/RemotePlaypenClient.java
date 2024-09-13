@@ -126,10 +126,6 @@ public class RemotePlaypenClient implements Closeable {
         }
     }
 
-    public boolean isKeepaliveCancelled() {
-        return keepaliveFuture == null || keepaliveFuture.isCancelled();
-    }
-
     public void keepalive(long periodSeconds) throws Exception {
         scheduler = Executors.newScheduledThreadPool(1);
         String connectUrl = apiUrl("keepalive");

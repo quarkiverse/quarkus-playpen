@@ -3,32 +3,32 @@ package io.quarkiverse.playpen.client;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClientOptions;
 
-public class PlaypenClientBuilder {
-    private final PlaypenClient playpenClient;
+public class LocalPlaypenClientBuilder {
+    private final LocalPlaypenClient playpenClient;
     private final Vertx vertx;
     private LocalPlaypenConnectionConfig config;
 
-    PlaypenClientBuilder(Vertx vertx) {
-        this.playpenClient = new PlaypenClient();
+    LocalPlaypenClientBuilder(Vertx vertx) {
+        this.playpenClient = new LocalPlaypenClient();
         this.vertx = vertx;
     }
 
-    public PlaypenClientBuilder playpen(String cli) {
+    public LocalPlaypenClientBuilder playpen(String cli) {
         this.config = LocalPlaypenConnectionConfig.fromCli(cli);
         return this;
     }
 
-    public PlaypenClientBuilder playpen(LocalPlaypenConnectionConfig config) {
+    public LocalPlaypenClientBuilder playpen(LocalPlaypenConnectionConfig config) {
         this.config = config;
         return this;
     }
 
-    public PlaypenClientBuilder numPollers(int num) {
+    public LocalPlaypenClientBuilder numPollers(int num) {
         playpenClient.numPollers = num;
         return this;
     }
 
-    public PlaypenClientBuilder service(String host, int port, boolean ssl) {
+    public LocalPlaypenClientBuilder service(String host, int port, boolean ssl) {
         HttpClientOptions options = new HttpClientOptions();
         if (ssl) {
             options.setSsl(true).setTrustAll(true);
@@ -36,34 +36,34 @@ public class PlaypenClientBuilder {
         return service(host, port, options);
     }
 
-    public PlaypenClientBuilder service(String host, int port, HttpClientOptions options) {
+    public LocalPlaypenClientBuilder service(String host, int port, HttpClientOptions options) {
         options.setDefaultHost(host);
         options.setDefaultPort(port);
         playpenClient.serviceClient = vertx.createHttpClient(options);
         return this;
     }
 
-    public PlaypenClientBuilder pollTimeoutMillis(long timeout) {
+    public LocalPlaypenClientBuilder pollTimeoutMillis(long timeout) {
         playpenClient.setPollTimeoutMillis(timeout);
         return this;
     }
 
-    public PlaypenClientBuilder basicAuth(String user, String password) {
+    public LocalPlaypenClientBuilder basicAuth(String user, String password) {
         playpenClient.setBasicAuth(user, password);
         return this;
     }
 
-    public PlaypenClientBuilder secretAuth(String secret) {
+    public LocalPlaypenClientBuilder secretAuth(String secret) {
         playpenClient.setSecretAuth(secret);
         return this;
     }
 
-    public PlaypenClientBuilder credentials(String creds) {
+    public LocalPlaypenClientBuilder credentials(String creds) {
         playpenClient.setCredentials(creds);
         return this;
     }
 
-    public PlaypenClient build() {
+    public LocalPlaypenClient build() {
         HttpClientOptions options = new HttpClientOptions();
         options.setDefaultHost(config.host);
         options.setDefaultPort(config.port);
