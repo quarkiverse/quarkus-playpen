@@ -540,12 +540,8 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
     public PlaypenConfigSpec toDefaultedSpec(PlaypenConfig config) {
         PlaypenConfigSpec spec = new PlaypenConfigSpec();
         spec.setPollTimeoutSeconds(5);
-        spec.setAuthType(AuthenticationType.secret.name());
-        if (isOpenshift()) {
-            spec.setExposePolicy(ExposePolicy.secureRoute.name());
-        } else {
-            spec.setExposePolicy(ExposePolicy.nodePort.name());
-        }
+        spec.setAuthType(AuthenticationType.none.name());
+        spec.setExposePolicy(ExposePolicy.manual.name());
         spec.setIdleTimeoutSeconds(60);
         spec.setPollTimeoutSeconds(5);
 

@@ -1,0 +1,49 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: meeting
+  name: meeting
+spec:
+  ports:
+    - name: http
+      nodePort: 30609
+      port: 80
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    app.kubernetes.io/name: meeting
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: meeting
+  name: meeting
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: meeting
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: meeting
+    spec:
+      containers:
+        - env:
+            - name: GREETING_SERVICE
+              value: "http://greeting"
+            - name: FAREWELL_SERVICE
+              value: "http://farewell"
+            - name: MEETING_MODE
+              value: "cluster"
+          image: meeting-service:999-SNAPSHOT
+          imagePullPolicy: Always
+          name: meeting-service
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP

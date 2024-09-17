@@ -1,0 +1,10 @@
+---
+apiVersion: "io.quarkiverse.playpen/v1"
+kind: Playpen
+metadata:
+  name: greeting
+---
+apiVersion: "io.quarkiverse.playpen/v1"
+kind: Playpen
+metadata:
+  name: meeting

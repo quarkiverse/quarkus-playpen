@@ -15,10 +15,11 @@
     <module>core</module>
     <module>kubernetes</module>
     <module>proxy</module>
-    <module>cli</module>
     <module>operator</module>
+    <module>cli</module>
     <module>extension/runtime</module>
     <module>extension/deployment</module>
+    <module>testing-components</module>
   </modules>
   <scm>
     <connection>scm:git:git@github.com:quarkiverse/quarkus-playpen.git</connection>
