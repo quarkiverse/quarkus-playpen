@@ -44,7 +44,7 @@ public class PlaypenUtil {
         Pod pod = null;
         for (int i = 0; i < 20; i++) {
             for (Pod p : client.pods().withLabel("run", selector).list().getItems()) {
-                if (p.getMetadata().getName().startsWith("greeting-playpen")) {
+                if (p.getMetadata().getName().startsWith(service + "-playpen")) {
                     pod = p;
                     break;
                 }
@@ -82,7 +82,7 @@ public class PlaypenUtil {
 
             Pod pod = null;
             for (Pod p : client.pods().withLabel("run", selector).list().getItems()) {
-                if (p.getMetadata().getName().startsWith("greeting-playpen")) {
+                if (p.getMetadata().getName().startsWith(service + "-playpen")) {
                     pod = p;
                     break;
                 }

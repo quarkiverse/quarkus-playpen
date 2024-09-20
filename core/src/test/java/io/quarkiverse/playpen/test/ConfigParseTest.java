@@ -9,7 +9,7 @@ public class ConfigParseTest {
 
     @Test
     public void testHttpMinus() {
-        String cli = "http://foo/prefix -who bill -query x=x,y=y -p /foo,/bar -header h=h -ip 192 -g";
+        String cli = "http://foo/prefix -who bill -query x=x -query y=y -p /foo -p /bar -header h=h -ip 192 -g";
         LocalPlaypenConnectionConfig config = LocalPlaypenConnectionConfig.fromCli(cli);
         Assertions.assertEquals("foo", config.host);
         Assertions.assertEquals(80, config.port);
@@ -34,7 +34,7 @@ public class ConfigParseTest {
 
     @Test
     public void testHttpMinusMinus() {
-        String cli = "http://foo/prefix --who=bill --query=x=x,y=y --path=/foo,/bar --header=h=h --clientIp=192 --global";
+        String cli = "http://foo/prefix --who=bill --query=x=x --query=y=y --path=/foo --path=/bar --header=h=h --clientIp=192 --global";
         LocalPlaypenConnectionConfig config = LocalPlaypenConnectionConfig.fromCli(cli);
         Assertions.assertEquals("foo", config.host);
         Assertions.assertEquals(80, config.port);

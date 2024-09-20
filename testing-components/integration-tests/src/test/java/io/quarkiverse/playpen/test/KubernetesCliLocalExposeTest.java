@@ -39,24 +39,12 @@ public class KubernetesCliLocalExposeTest {
 
     @BeforeAll
     public static void init() {
-        nodeHost = System.getProperty("node.host", "devcluster");
-        //nodeHost = System.getProperty("node.host", "apps-crc.testing");
+        String defaultHost = "devcluster";
+        if (System.getProperty("openshift") != null) {
+            defaultHost = "apps-src.testing";
+        }
+        nodeHost = System.getProperty("node.host", defaultHost);
         greetingService = nodeHost + ":30607";
-        /*
-         * mvn = new CommandExec()
-         * .workDir(System.getProperty("user.dir") + "/../greeting")
-         * .executeAsync("mvn quarkus:dev");
-         * try {
-         * String wait = mvn.waitForStdout("Installed features", "ERROR");
-         * if (!wait.equals("Installed features")) {
-         * throw new RuntimeException("Failed to start maven");
-         * }
-         * } catch (Exception e) {
-         * mvn.exit();
-         * throw e;
-         * }
-         *
-         */
         vertx = new VertxBuilder()
                 .threadFactory(new VertxThreadFactory() {
                     public VertxThread newVertxThread(Runnable target, String name, boolean worker, long maxExecTime,
@@ -202,7 +190,7 @@ public class KubernetesCliLocalExposeTest {
         PlaypenCli cli = new PlaypenCli()
                 .executeAsync(cmd);
         try {
-            String found = cli.waitForStdout("Control-C", "[ERROR]", "[WARN]");
+            String found = cli.waitForStdout("Control-C", "[ERROR]", "[WARN]", "Usage");
             if (!found.equals("Control-C")) {
                 throw new RuntimeException("Failed to start CLI");
             }

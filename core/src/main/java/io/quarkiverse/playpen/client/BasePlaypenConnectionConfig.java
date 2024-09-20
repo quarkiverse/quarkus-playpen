@@ -61,6 +61,8 @@ public class BasePlaypenConnectionConfig {
 
         Map<String, List<String>> params = new HashMap<>();
         for (; i < tokens.length; i++) {
+            String name = null;
+            String val = null;
             if (tokens[i].startsWith("--")) {
                 if (tokens[i].length() < 3)
                     continue;
@@ -68,30 +70,31 @@ public class BasePlaypenConnectionConfig {
                 if (idx == 3)
                     continue; // '=' is first char
 
-                String name = null;
-                List<String> vals = new ArrayList<>();
                 if (idx < 0) {
                     name = tokens[i].substring(2);
                 } else {
                     name = tokens[i].substring(2, idx);
-                    String val = tokens[i].substring(idx + 1);
-                    for (String v : val.split(",")) {
-                        vals.add(v);
-                    }
+                    val = tokens[i].substring(idx + 1);
                 }
-                params.put(name, vals);
+
             } else if (tokens[i].startsWith("-")) {
                 if (tokens[i].length() < 2)
                     continue;
-                String name = tokens[i].substring(1);
-                List<String> vals = new ArrayList<>();
-                params.put(name, vals);
-                if (i + 1 == tokens.length)
-                    continue;
-                String val = tokens[++i];
-                for (String v : val.split(",")) {
-                    vals.add(v);
+                name = tokens[i].substring(1);
+                if (i + 1 < tokens.length) {
+                    if (!tokens[i + 1].startsWith("-")) {
+                        val = tokens[++i];
+                    }
                 }
+            }
+            if (name != null) {
+                List<String> vals = params.get(name);
+                if (vals == null) {
+                    vals = new ArrayList<>();
+                    params.put(name, vals);
+                }
+                if (val != null)
+                    vals.add(val);
             }
         }
         return params;

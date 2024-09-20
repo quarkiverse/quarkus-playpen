@@ -36,7 +36,7 @@ public class Connect extends BaseCommand implements Callable<Integer> {
             "--local-port" }, defaultValue = "8080", description = "port of local process", showDefaultValue = CommandLine.Help.Visibility.ALWAYS)
     private int localPort = 8080;
 
-    @CommandLine.Option(names = { "-port-forwards", "--port-forwards" }, description = "establish port forwards")
+    @CommandLine.Option(names = { "-pf", "--pf", "-port-forward", "--port-forward" }, description = "establish port forwards")
     public List<String> portForwards;
 
     @Inject
