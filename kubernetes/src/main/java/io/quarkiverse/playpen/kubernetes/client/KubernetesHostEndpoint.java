@@ -1,4 +1,4 @@
-package io.quarkiverse.playpen.client;
+package io.quarkiverse.playpen.kubernetes.client;
 
 import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.client.KubernetesClient;

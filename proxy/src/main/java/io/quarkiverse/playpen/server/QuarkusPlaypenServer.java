@@ -10,6 +10,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.quarkiverse.playpen.kubernetes.server.KubernetesPlaypenManager;
 import io.quarkiverse.playpen.server.auth.NoAuth;
 import io.quarkiverse.playpen.server.auth.OpenshiftBasicAuth;
 import io.quarkiverse.playpen.server.auth.PlaypenAuth;

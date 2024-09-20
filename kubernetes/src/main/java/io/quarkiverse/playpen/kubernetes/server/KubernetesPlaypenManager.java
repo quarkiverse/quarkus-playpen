@@ -1,4 +1,4 @@
-package io.quarkiverse.playpen.server;
+package io.quarkiverse.playpen.kubernetes.server;
 
 import java.util.List;
 import java.util.Map;
@@ -15,7 +15,10 @@ import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.quarkiverse.playpen.client.KubernetesHostEndpoint;
+import io.quarkiverse.playpen.kubernetes.client.KubernetesHostEndpoint;
+import io.quarkiverse.playpen.server.PlaypenProxyConfig;
+import io.quarkiverse.playpen.server.PlaypenProxyConstants;
+import io.quarkiverse.playpen.server.RemotePlaypenManager;
 
 public class KubernetesPlaypenManager implements RemotePlaypenManager {
     protected static final Logger log = Logger.getLogger(KubernetesPlaypenManager.class);

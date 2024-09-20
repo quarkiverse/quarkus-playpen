@@ -11,10 +11,10 @@ import java.util.Set;
 import org.jboss.logging.Logger;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.quarkiverse.playpen.client.KubernetesRemotePlaypenClient;
-import io.quarkiverse.playpen.client.PortForward;
 import io.quarkiverse.playpen.client.RemotePlaypenClient;
 import io.quarkiverse.playpen.client.RemotePlaypenConnectionConfig;
+import io.quarkiverse.playpen.kubernetes.client.KubernetesRemotePlaypenClient;
+import io.quarkiverse.playpen.kubernetes.client.PortForward;
 import io.quarkiverse.playpen.server.PlaypenProxyConstants;
 import io.quarkiverse.playpen.utils.InsecureSsl;
 import io.quarkiverse.playpen.utils.ProxyUtils;

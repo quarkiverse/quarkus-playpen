@@ -8,12 +8,12 @@ import jakarta.inject.Inject;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
-import io.quarkiverse.playpen.client.KubernetesRemotePlaypenClient;
 import io.quarkiverse.playpen.client.OnShutdown;
 import io.quarkiverse.playpen.client.RemotePlaypenClient;
 import io.quarkiverse.playpen.client.RemotePlaypenConnectionConfig;
 import io.quarkiverse.playpen.client.util.BaseCommand;
 import io.quarkiverse.playpen.client.util.ConnectMixin;
+import io.quarkiverse.playpen.kubernetes.client.KubernetesRemotePlaypenClient;
 import io.quarkiverse.playpen.utils.InsecureSsl;
 import io.quarkiverse.playpen.utils.MessageIcons;
 import picocli.CommandLine;

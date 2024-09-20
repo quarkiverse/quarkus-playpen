@@ -1,8 +1,7 @@
 package io.quarkiverse.playpen.kubernetes.crds;
 
 public enum ExposePolicy {
-    defaultPolicy,
-    manual,
+    none,
     route,
     secureRoute,
     nodePort,

@@ -135,7 +135,7 @@ public class PlaypenConfigSpec {
             return ExposePolicy.route;
         }
         if (exposePolicy == null) {
-            return ExposePolicy.defaultPolicy;
+            return ExposePolicy.none;
         }
         return ExposePolicy.valueOf(exposePolicy);
     }

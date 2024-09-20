@@ -11,6 +11,7 @@ import org.jboss.logging.Logger;
 import io.quarkiverse.playpen.server.auth.NoAuth;
 import io.quarkiverse.playpen.server.auth.PlaypenAuth;
 import io.quarkiverse.playpen.utils.ProxyUtils;
+import io.quarkiverse.playpen.utils.ReverseProxy;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.Cookie;
 import io.vertx.core.http.HttpClient;
@@ -28,6 +29,7 @@ public class PlaypenProxy {
     protected PlaypenProxyConfig config;
     protected HttpClient client;
     protected HttpProxy proxy;
+    protected ReverseProxy proxy2;
     protected Map<String, Playpen> sessions = new ConcurrentHashMap<>();
     protected volatile Playpen globalSession;
     protected PlaypenAuth auth = new NoAuth();
@@ -99,7 +101,7 @@ public class PlaypenProxy {
         this.client = vertx.createHttpClient(options);
         this.proxy = HttpProxy.reverseProxy(client);
         proxy.origin(config.servicePort, config.serviceHost);
-
+        this.proxy2 = new ReverseProxy(this.client);
     }
 
     public void setAuth(PlaypenAuth auth) {
@@ -165,7 +167,8 @@ public class PlaypenProxy {
         if (found != null && found.isRunning()) {
             found.route(ctx);
         } else {
-            proxy.handle(ctx.request());
+            proxy2.proxyContext(ctx, config.servicePort, config.serviceHost, ctx.request().uri());
+            //proxy.handle(ctx.request());
         }
     }
 

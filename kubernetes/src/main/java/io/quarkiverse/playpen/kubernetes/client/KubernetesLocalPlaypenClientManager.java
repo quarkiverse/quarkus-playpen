@@ -1,7 +1,10 @@
-package io.quarkiverse.playpen.client;
+package io.quarkiverse.playpen.kubernetes.client;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.LocalPortForward;
+import io.quarkiverse.playpen.client.DefaultLocalPlaypenClientManager;
+import io.quarkiverse.playpen.client.LocalPlaypenClientManager;
+import io.quarkiverse.playpen.client.LocalPlaypenConnectionConfig;
 
 public class KubernetesLocalPlaypenClientManager extends DefaultLocalPlaypenClientManager implements LocalPlaypenClientManager {
     final KubernetesClient client;

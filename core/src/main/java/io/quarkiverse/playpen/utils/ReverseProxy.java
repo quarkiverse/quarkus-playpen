@@ -15,7 +15,11 @@ public class ReverseProxy {
     protected static final Logger log = Logger.getLogger(ReverseProxy.class);
     protected HttpClient client;
 
-    private void proxyContext(RoutingContext ctx, int port, String host, String uri) {
+    public ReverseProxy(HttpClient client) {
+        this.client = client;
+    }
+
+    public void proxyContext(RoutingContext ctx, int port, String host, String uri) {
         log.debugv("proxyContext {0} {1}", host, uri);
         ctx.request().pause();
         client.request(ctx.request().method(), port, host, uri)
@@ -56,6 +60,10 @@ public class ReverseProxy {
                         }
 
                     });
+                })
+                .onFailure(event -> {
+                    log.error("Failed to connect to " + host, event);
+                    ctx.response().setStatusCode(500).end();
                 });
     }
 

@@ -37,7 +37,7 @@ public class LocalPlaypenConnectionConfig extends BasePlaypenConnectionConfig {
         return config;
     }
 
-    protected static void setHttpLocation(LocalPlaypenConnectionConfig playpen) {
+    public static void setHttpLocation(LocalPlaypenConnectionConfig playpen) {
         String target = playpen.connection;
         if (target.startsWith("http")) {
             String uriString = target;

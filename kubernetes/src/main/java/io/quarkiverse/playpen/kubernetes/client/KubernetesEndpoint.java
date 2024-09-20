@@ -1,4 +1,4 @@
-package io.quarkiverse.playpen.client;
+package io.quarkiverse.playpen.kubernetes.client;
 
 import org.jboss.logging.Logger;
 

@@ -1,9 +1,11 @@
-package io.quarkiverse.playpen.client;
+package io.quarkiverse.playpen.kubernetes.client;
 
 import java.io.Closeable;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.LocalPortForward;
+import io.quarkiverse.playpen.client.RemotePlaypenClient;
+import io.quarkiverse.playpen.client.RemotePlaypenConnectionConfig;
 
 public class KubernetesRemotePlaypenClient extends RemotePlaypenClient implements Closeable {
     final KubernetesClient client;

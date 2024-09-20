@@ -4,6 +4,7 @@ import static io.javaoperatorsdk.operator.api.reconciler.Constants.WATCH_ALL_NAM
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.function.UnaryOperator;
 
 import jakarta.inject.Inject;
@@ -186,7 +187,11 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                 .build();
         client.apps().deployments().resource(deployment).serverSideApply();
         primary.getStatus().getCleanup().add(0, new PlaypenStatus.CleanupResource("deployment", name));
-
+        try {
+            client.apps().deployments().resource(deployment).waitUntilReady(5, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.error(e);
+        }
     }
 
     public static String origin(Playpen primary) {
@@ -423,7 +428,8 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                 return UpdateControl.updateStatus(playpen);
             }
         } else {
-            return UpdateControl.<Playpen> noUpdate();
+            log.info("Got reconcile when status already set");
+            return UpdateControl.<Playpen> updateResourceAndPatchStatus(playpen);
         }
     }
 
@@ -541,7 +547,7 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
         PlaypenConfigSpec spec = new PlaypenConfigSpec();
         spec.setPollTimeoutSeconds(5);
         spec.setAuthType(AuthenticationType.none.name());
-        spec.setExposePolicy(ExposePolicy.manual.name());
+        spec.setExposePolicy(ExposePolicy.none.name());
         spec.setIdleTimeoutSeconds(60);
         spec.setPollTimeoutSeconds(5);
 

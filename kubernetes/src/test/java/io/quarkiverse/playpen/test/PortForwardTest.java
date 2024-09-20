@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
-import io.quarkiverse.playpen.client.PortForward;
+import io.quarkiverse.playpen.kubernetes.client.PortForward;
 
 public class PortForwardTest {
 

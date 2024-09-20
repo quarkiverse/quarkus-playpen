@@ -206,13 +206,16 @@ public class CommandExec {
         }
     }
 
-    public void waitForStdout(String content) {
+    public String waitForStdout(String... content) {
         long start = System.currentTimeMillis();
         String last = null;
         while (System.currentTimeMillis() - start < waitTimeout) {
             last = stdoutString();
-            if (last.indexOf(content) != -1) {
-                return;
+            for (String search : content) {
+                if (last.indexOf(search) != -1) {
+                    return search;
+                }
+
             }
             try {
                 Thread.sleep(10);

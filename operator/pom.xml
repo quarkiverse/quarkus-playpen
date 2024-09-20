@@ -24,6 +24,10 @@
 
     <dependencies>
         <dependency>
+            <groupId>io.quarkiverse.playpen</groupId>
+            <artifactId>kubernetes-playpen-core</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.quarkiverse.operatorsdk</groupId>
             <artifactId>quarkus-operator-sdk</artifactId>
         </dependency>

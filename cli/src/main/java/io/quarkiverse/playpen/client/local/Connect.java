@@ -10,13 +10,13 @@ import jakarta.inject.Inject;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.quarkiverse.playpen.client.DefaultLocalPlaypenClientManager;
-import io.quarkiverse.playpen.client.KubernetesLocalPlaypenClientManager;
 import io.quarkiverse.playpen.client.LocalPlaypenClient;
 import io.quarkiverse.playpen.client.LocalPlaypenConnectionConfig;
 import io.quarkiverse.playpen.client.OnShutdown;
-import io.quarkiverse.playpen.client.PortForward;
 import io.quarkiverse.playpen.client.util.BaseCommand;
 import io.quarkiverse.playpen.client.util.ConnectMixin;
+import io.quarkiverse.playpen.kubernetes.client.KubernetesLocalPlaypenClientManager;
+import io.quarkiverse.playpen.kubernetes.client.PortForward;
 import io.quarkiverse.playpen.utils.MessageIcons;
 import io.quarkiverse.playpen.utils.ProxyUtils;
 import io.vertx.core.Vertx;
@@ -50,6 +50,7 @@ public class Connect extends BaseCommand implements Callable<Integer> {
 
         LocalPlaypenConnectionConfig config = new LocalPlaypenConnectionConfig();
         baseOptions.setConfig(config);
+        LocalPlaypenConnectionConfig.setHttpLocation(config);
         config.onPoll = onPoll;
         if (config.error != null) {
             output.error(config.error);
