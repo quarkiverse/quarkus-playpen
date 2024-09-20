@@ -5,62 +5,32 @@ import static org.hamcrest.CoreMatchers.equalTo;
 
 import java.util.concurrent.TimeUnit;
 
-import jakarta.enterprise.event.Observes;
-import jakarta.inject.Singleton;
-
-import org.jboss.shrinkwrap.api.asset.StringAsset;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.RegisterExtension;
 
-import io.quarkiverse.playpen.LocalPlaypenRecorder;
 import io.quarkiverse.playpen.server.PlaypenProxy;
 import io.quarkiverse.playpen.server.PlaypenProxyConfig;
 import io.quarkiverse.playpen.server.PlaypenProxyConstants;
+import io.quarkiverse.playpen.test.util.command.PlaypenCli;
 import io.quarkiverse.playpen.utils.ProxyUtils;
-import io.quarkus.test.QuarkusUnitTest;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.impl.VertxBuilder;
 import io.vertx.core.impl.VertxThread;
 import io.vertx.core.spi.VertxThreadFactory;
-import io.vertx.ext.web.Router;
 
-public class PlaypenServerSessionTest {
-
+public class CliSessionTest {
     public static final int SERVICE_PORT = 9091;
     public static final int PROXY_PORT = 9092;
     public static final int CLIENT_API_PORT = 9093;
-
-    private static final String APP_PROPS = "" +
-            "playpen.local.connect=http://localhost:9093 -who john -path /users/john -query user=john\n"
-            + "quarkus.log.category.\"io.quarkiverse.playpen\".level=DEBUG\n"
-            + "playpen.local.manual-start=true\n";
-
-    @RegisterExtension
-    static final QuarkusUnitTest config = new QuarkusUnitTest()
-            .withApplicationRoot((jar) -> jar
-                    .addAsResource(new StringAsset(APP_PROPS), "application.properties")
-                    .addClasses(RouteProducer.class));
-
-    @Singleton
-    public static class RouteProducer {
-        void observeRouter(@Observes Router router) {
-            router.route().handler(
-                    request -> {
-                        System.out.println("************ CALLED LOCAL SERVER **************");
-                        request.response().setStatusCode(200).putHeader("Content-Type", "text/plain").end("local");
-                    });
-        }
-
-    }
 
     public static AutoCloseable proxy;
 
     static HttpServer myService;
 
     static Vertx vertx;
+    static HttpServer localService;
 
     @BeforeAll
     public static void before() {
@@ -75,6 +45,13 @@ public class PlaypenServerSessionTest {
         ProxyUtils.await(1000, myService.requestHandler(request -> {
             request.response().setStatusCode(200).putHeader("Content-Type", "text/plain").end("my-service");
         }).listen(SERVICE_PORT));
+        localService = vertx.createHttpServer();
+        localService.requestHandler(request -> {
+            request.response()
+                    .setStatusCode(200)
+                    .putHeader("Content-Type", "text/plain")
+                    .end("local");
+        }).listen(8080);
 
         PlaypenProxyConfig config = new PlaypenProxyConfig();
         config.service = "my-service";
@@ -88,6 +65,7 @@ public class PlaypenServerSessionTest {
         System.out.println(" -------    CLEANUP TEST ------");
         if (vertx != null) {
             ProxyUtils.await(1000, myService.close());
+            ProxyUtils.await(1000, localService.close());
             proxy.close();
             ProxyUtils.await(1000, vertx.close());
         }
@@ -95,9 +73,15 @@ public class PlaypenServerSessionTest {
 
     @Test
     public void testSession() throws Exception {
-
+        PlaypenCli cli = new PlaypenCli()
+                .executeAsync(
+                        "local connect http://localhost:" + CLIENT_API_PORT
+                                + " -who john --query=user=john -path /users/john");
         try {
-            LocalPlaypenRecorder.startSession();
+            String found = cli.waitForStdout("Control-C", "[ERROR]", "[WARN]");
+            if (!found.equals("Control-C")) {
+                throw new RuntimeException("Failed to start CLI");
+            }
             System.out.println("-------------------- Query GET REQUEST --------------------");
             given()
                     .when()
@@ -171,8 +155,9 @@ public class PlaypenServerSessionTest {
                     .contentType(equalTo("text/plain"))
                     .body(equalTo("my-service"));
         } finally {
-            LocalPlaypenRecorder.closeSession();
+            cli.exit();
         }
+        Thread.sleep(100);
         System.out.println("-------------------- After Shutdown GET REQUEST --------------------");
         given()
                 .when()
@@ -191,4 +176,5 @@ public class PlaypenServerSessionTest {
                 .contentType(equalTo("text/plain"))
                 .body(equalTo("my-service"));
     }
+
 }

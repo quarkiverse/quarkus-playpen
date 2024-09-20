@@ -1,4 +1,4 @@
-package io.quarkiverse.playpen.test.util;
+package io.quarkiverse.playpen.test.util.command;
 
 import java.io.ByteArrayOutputStream;
 import java.io.FilterOutputStream;

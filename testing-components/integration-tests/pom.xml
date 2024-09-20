@@ -7,8 +7,8 @@
         <version>999-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
-    <artifactId>kubernetes-integration-tests</artifactId>
-    <name>Kubernetes Integration Tests</name>
+    <artifactId>integration-tests</artifactId>
+    <name>Integration Tests</name>
     <dependencies>
         <dependency>
             <groupId>io.quarkiverse.playpen</groupId>

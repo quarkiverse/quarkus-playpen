@@ -1,6 +1,6 @@
-package io.quarkiverse.playpen.test.util;
+package io.quarkiverse.playpen.test.util.command;
 
-import static io.quarkiverse.playpen.test.util.CommandExec.copyStream;
+import static io.quarkiverse.playpen.test.util.command.CommandExec.copyStream;
 
 import java.io.IOException;
 import java.io.InputStream;

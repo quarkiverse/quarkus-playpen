@@ -33,7 +33,7 @@
         <module>greeting</module>
         <module>farewell</module>
         <module>meeting</module>
-        <module>kuberentes-integration-tests</module>
+        <module>integration-tests</module>
     </modules>
 
 </project>

@@ -4,7 +4,6 @@ import static io.javaoperatorsdk.operator.api.reconciler.Constants.WATCH_ALL_NAM
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.function.UnaryOperator;
 
 import jakarta.inject.Inject;
@@ -100,8 +99,10 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
         return config;
     }
 
-    private void createServiceAccount(Playpen primary) {
-        String name = playpenDeployment(primary);
+    private void createServiceAccount(ReconcileContext ctx) {
+        Playpen primary = ctx.playpen;
+        String name = serviceAccount(primary);
+        ctx.serviceAccount = name;
         var account = new ServiceAccountBuilder()
                 .withMetadata(createMetadata(primary, name)).build();
         client.serviceAccounts().resource(account).serverSideApply();
@@ -126,9 +127,18 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
         return primary.getMetadata().getName() + "-playpen";
     }
 
-    private void createProxyDeployment(Playpen primary, PlaypenConfigSpec config, AuthenticationType auth) {
+    public static String serviceAccount(Playpen primary) {
+        return primary.getMetadata().getName() + "-playpen";
+    }
+
+    private void createProxyDeployment(ReconcileContext ctx) {
+        Playpen primary = ctx.playpen;
+        PlaypenConfigSpec config = ctx.config;
+        AuthenticationType auth = ctx.config.toAuthenticationType();
         String serviceName = primary.getMetadata().getName();
         String name = playpenDeployment(primary);
+        ctx.selector = name + "-" + System.currentTimeMillis();
+
         String image = proxyImage;
         String imagePullPolicy = proxyImagePullPolicy;
 
@@ -137,9 +147,9 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                 .withNewSpec()
                 .withReplicas(1)
                 .withNewSelector()
-                .withMatchLabels(Map.of("run", name))
+                .withMatchLabels(Map.of("run", ctx.selector))
                 .endSelector()
-                .withNewTemplate().withNewMetadata().addToLabels(Map.of("run", name)).endMetadata()
+                .withNewTemplate().withNewMetadata().addToLabels(Map.of("run", ctx.selector)).endMetadata()
                 .withNewSpec()
                 .addNewContainer();
         if (auth == AuthenticationType.secret) {
@@ -163,7 +173,7 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
 
         var spec = container
                 .addNewEnv().withName("SERVICE_NAME").withValue(serviceName).endEnv()
-                .addNewEnv().withName("SERVICE_HOST").withValue(origin(primary)).endEnv()
+                .addNewEnv().withName("SERVICE_HOST").withValue(ctx.origin).endEnv()
                 .addNewEnv().withName("SERVICE_PORT").withValue("80").endEnv()
                 .addNewEnv().withName("SERVICE_SSL").withValue("false").endEnv()
                 .addNewEnv().withName("POLL_TIMEOUT").withValue(Long.toString(pollTimeout)).endEnv()
@@ -187,25 +197,16 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                 .build();
         client.apps().deployments().resource(deployment).serverSideApply();
         primary.getStatus().getCleanup().add(0, new PlaypenStatus.CleanupResource("deployment", name));
-        try {
-            client.apps().deployments().resource(deployment).waitUntilReady(5, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            log.error(e);
-        }
     }
 
-    public static String origin(Playpen primary) {
-        return primary.getMetadata().getName() + "-origin";
-    }
-
-    private void createOriginService(Playpen primary, PlaypenConfigSpec config) {
-        String serviceName = primary.getMetadata().getName();
-        String name = origin(primary);
+    private void createOriginService(ReconcileContext ctx) {
+        Playpen primary = ctx.playpen;
+        String name = primary.getMetadata().getName() + "-origin-" + System.currentTimeMillis();
+        ctx.origin = name;
         Map<String, String> selector = null;
         if (primary.getStatus() == null || primary.getStatus().getOldSelectors() == null
                 || primary.getStatus().getOldSelectors().isEmpty()) {
-            selector = client.services().inNamespace(primary.getMetadata().getNamespace()).withName(serviceName).get().getSpec()
-                    .getSelector();
+            selector = ctx.service.getSpec().getSelector();
         } else {
             selector = primary.getStatus().getOldSelectors();
         }
@@ -229,7 +230,10 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
         return primary.getMetadata().getName() + "-playpen";
     }
 
-    private void createClientService(Playpen primary, PlaypenStatus status, PlaypenConfigSpec config) {
+    private void createClientService(ReconcileContext ctx) {
+        Playpen primary = ctx.playpen;
+        PlaypenConfigSpec config = ctx.config;
+        PlaypenStatus status = ctx.playpen.getStatus();
         String name = playpenServiceName(primary);
         ExposePolicy exposePolicy = config.toExposePolicy();
         status.setExposePolicy(exposePolicy.name());
@@ -253,7 +257,7 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
 
         Service service = port
                 .endPort()
-                .withSelector(Map.of("run", playpenDeployment(primary)))
+                .withSelector(Map.of("run", ctx.selector))
                 .endSpec().build();
         client.resource(service).serverSideApply();
 
@@ -368,6 +372,15 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
         playpen.getStatus().getCleanup().add(0, new PlaypenStatus.CleanupResource("secret", name));
     }
 
+    class ReconcileContext {
+        public Service service;
+        public String serviceAccount;
+        public String origin;
+        public String selector;
+        public Playpen playpen;
+        public PlaypenConfigSpec config;
+    }
+
     @Override
     public UpdateControl<Playpen> reconcile(Playpen playpen, Context<Playpen> context) {
         if (playpen.getStatus() == null) {
@@ -382,27 +395,28 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                     status.setError("Service does not exist");
                     return UpdateControl.updateStatus(playpen);
                 }
-                PlaypenConfig config = findPlaypenConfig(playpen);
-                PlaypenConfigSpec configSpec = getPlaypenConfig(playpen);
-                AuthenticationType auth = configSpec.toAuthenticationType();
+                ReconcileContext rc = new ReconcileContext();
+                rc.playpen = playpen;
+                rc.config = getPlaypenConfig(playpen);
+                rc.service = service;
+                AuthenticationType auth = rc.config.toAuthenticationType();
                 if (auth == AuthenticationType.secret) {
                     createSecret(playpen);
                 }
                 status.setAuthPolicy(auth.name());
-                createServiceAccount(playpen);
-                createProxyDeployment(playpen, configSpec, auth);
-                createOriginService(playpen, configSpec);
-                createClientService(playpen, status, configSpec);
+                createServiceAccount(rc);
+                createOriginService(rc);
+                createProxyDeployment(rc);
+                createClientService(rc);
 
                 Map<String, String> oldSelectors = new HashMap<>();
                 oldSelectors.putAll(service.getSpec().getSelector());
                 status.setOldSelectors(oldSelectors);
-                String proxyDeploymentName = playpenDeployment(playpen);
                 UnaryOperator<Service> edit = (s) -> {
                     ServiceBuilder builder = new ServiceBuilder(s);
                     ServiceFluent<ServiceBuilder>.SpecNested<ServiceBuilder> spec = builder.editSpec();
                     spec.getSelector().clear();
-                    spec.getSelector().put("run", proxyDeploymentName);
+                    spec.getSelector().put("run", rc.selector);
                     // Setting externalTrafficPolicy to Local is for getting clientIp address
                     // when using NodePort. If service is not NodePort then you can't use this
                     // spec.withExternalTrafficPolicy("Local");
@@ -411,6 +425,7 @@ public class PlaypenReconciler implements Reconciler<Playpen>, Cleaner<Playpen> 
                 serviceResource.edit(edit);
 
                 status.setCreated(true);
+                PlaypenConfig config = findPlaypenConfig(playpen);
                 if (config != null) {
                     playpen.getMetadata().getLabels().put("io.quarkiverse.playpen/config",
                             config.getMetadata().getNamespace() + "-" + config.getMetadata().getName());

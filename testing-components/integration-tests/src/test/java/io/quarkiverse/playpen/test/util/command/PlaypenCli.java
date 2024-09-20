@@ -1,4 +1,4 @@
-package io.quarkiverse.playpen.test.util;
+package io.quarkiverse.playpen.test.util.command;
 
 public class PlaypenCli extends CommandExec {
     protected String baseCmd = "java -jar ../../cli/target/playpen-cli-999-SNAPSHOT-runner.jar";
