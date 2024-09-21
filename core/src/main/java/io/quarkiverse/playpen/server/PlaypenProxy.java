@@ -145,7 +145,7 @@ public class PlaypenProxy {
     }
 
     public void proxy(RoutingContext ctx) {
-        log.debugv("*** entered proxy {0} {1}", ctx.request().method().toString(), ctx.request().uri());
+        log.debugv("entered proxy {0} {1}", ctx.request().method().toString(), ctx.request().uri());
 
         Playpen found = null;
         for (Playpen session : sessions.values()) {
