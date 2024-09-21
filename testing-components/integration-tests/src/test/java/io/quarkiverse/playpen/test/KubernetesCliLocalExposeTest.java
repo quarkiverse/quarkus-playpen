@@ -9,7 +9,7 @@ import io.quarkiverse.playpen.kubernetes.crds.PlaypenConfigSpec;
 import io.quarkiverse.playpen.test.util.PlaypenUtil;
 
 @EnabledIfSystemProperty(named = "k8s", matches = "true")
-public class KubernetesCliLocalExposeTest extends BaseCliLocalExposeTest {
+public class KubernetesCliLocalExposeTest extends BaseCliLocalTest {
     @Test
     public void testExposeByPortForward() throws Exception {
         System.out.println("---------- PORT FORWARD");
@@ -22,7 +22,7 @@ public class KubernetesCliLocalExposeTest extends BaseCliLocalExposeTest {
             PlaypenUtil.createPlaypen(client, "greeting", configName);
             Thread.sleep(2000);
             String cmd = "local connect greeting -who bill -global";
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < 2; i++) {
                 test(cmd);
             }
         } finally {

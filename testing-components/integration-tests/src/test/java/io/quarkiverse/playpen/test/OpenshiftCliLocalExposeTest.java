@@ -8,7 +8,7 @@ import io.quarkiverse.playpen.kubernetes.crds.PlaypenConfig;
 import io.quarkiverse.playpen.test.util.PlaypenUtil;
 
 @EnabledIfSystemProperty(named = "openshift", matches = "true")
-public class OpenshiftCliLocalExposeTest extends BaseCliLocalExposeTest {
+public class OpenshiftCliLocalExposeTest extends BaseCliLocalTest {
     @Test
     public void testExposeByPortForward() throws Exception {
         System.out.println("---------- PORT FORWARD");

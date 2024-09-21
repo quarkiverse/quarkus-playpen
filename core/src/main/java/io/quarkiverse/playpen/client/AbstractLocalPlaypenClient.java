@@ -144,9 +144,9 @@ public abstract class AbstractLocalPlaypenClient {
                     } else if (credentials == null || challenged) {
                         String message = "";
                         if (wwwAuthenticate.startsWith("Basic")) {
-                            message = ". You must provide correct username and password in quarkus.playpen.credentials as <username>:<password>";
+                            message = "You must provide correct username and password for -credentials switch as <username>:<password>";
                         } else if (wwwAuthenticate.startsWith("Secret")) {
-                            message = ". You must provide correct secret in quarkus.playpen.credentials";
+                            message = "You must provide correct secret for -credentials switch";
                         }
                         logError("Could not authenticate connection" + message);
                         latch.countDown();

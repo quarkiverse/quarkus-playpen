@@ -58,7 +58,7 @@ public class QuarkusPlaypenServer {
     protected String authType;
 
     @Inject
-    @ConfigProperty(name = "oauth.url", defaultValue = "oauth-openshift.openshift-authentication.svc.cluster.local")
+    @ConfigProperty(name = "oauth.url", defaultValue = "https://oauth-openshift.openshift-authentication.svc.cluster.local")
     protected String oauthUrl;
 
     @Inject

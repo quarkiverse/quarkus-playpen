@@ -20,7 +20,7 @@ import io.vertx.core.impl.VertxBuilder;
 import io.vertx.core.impl.VertxThread;
 import io.vertx.core.spi.VertxThreadFactory;
 
-public abstract class BaseCliLocalExposeTest {
+public abstract class BaseCliLocalTest {
     public static String nodeHost;
     public static String greetingService;
     public static KubernetesClient client;
