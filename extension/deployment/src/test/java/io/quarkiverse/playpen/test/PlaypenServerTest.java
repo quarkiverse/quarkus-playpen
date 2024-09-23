@@ -95,11 +95,6 @@ public class PlaypenServerTest {
     }
 
     @Test
-    public void testNothing() {
-
-    }
-
-    @Test
     public void testProxy() {
         // invoke service directly
         given()

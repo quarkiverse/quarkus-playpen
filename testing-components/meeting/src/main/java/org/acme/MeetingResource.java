@@ -1,6 +1,8 @@
 package org.acme;
 
 import java.net.URI;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 
 import jakarta.inject.Inject;
 import jakarta.ws.rs.DefaultValue;
@@ -17,7 +19,6 @@ import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
 @Path("/meet")
 public class MeetingResource {
     @Path("/hello")
-    //@RegisterRestClient(configKey = "greeting.service")
     public interface Greeting {
         @GET
         @Produces(MediaType.TEXT_PLAIN)
@@ -25,28 +26,9 @@ public class MeetingResource {
 
     }
 
-    @Path("/goodbye")
-    //@RegisterRestClient(configKey = "farewell.service")
-    public interface Farewell {
-        @GET
-        @Produces(MediaType.TEXT_PLAIN)
-        String goodbye(@QueryParam("user") String user);
-
-    }
-
-    @ConfigProperty(name = "greeting.service")
+    @ConfigProperty(name = "greeting.host")
     @Inject
     String greetingUri;
-
-    @ConfigProperty(name = "farewell.service")
-    @Inject
-    String farewellUri;
-
-    //@RestClient
-    //Farewell farewell;
-
-    //@RestClient
-    //Greeting greeting;
 
     @ConfigProperty(name = "meeting.mode", defaultValue = "none")
     @Inject
@@ -55,20 +37,15 @@ public class MeetingResource {
     @GET
     @Produces(MediaType.TEXT_HTML)
     public String meet(@QueryParam("user") @DefaultValue("developer") String user) throws Exception {
-        if (false) {
-            return greetingUri + " " + farewellUri + " " + meetingMode;
-        }
         Greeting greeting = QuarkusRestClientBuilder.newBuilder()
-                .baseUri(URI.create(greetingUri)).build(Greeting.class);
-        Farewell farewell = QuarkusRestClientBuilder.newBuilder()
-                .baseUri(URI.create(farewellUri)).build(Farewell.class);
+                .baseUri(URI.create("http://" + greetingUri)).build(Greeting.class);
 
         String msg = greeting.hello(user);
-        msg += " ";
-        msg += farewell.goodbye(user);
         if (!"none".equals(meetingMode)) {
             msg += " " + meetingMode;
         }
+        String time = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+        msg = "<h1>" + msg + "</h1><h1>Let's meet locally at " + time + "</h1>";
         return msg;
     }
 }

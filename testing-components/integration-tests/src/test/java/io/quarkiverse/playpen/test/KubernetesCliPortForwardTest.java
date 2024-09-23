@@ -46,7 +46,7 @@ public class KubernetesCliPortForwardTest {
             CommandExec mvn = new CommandExec()
                     .workDir(System.getProperty("user.dir") + "/../meeting")
                     .executeAsync(
-                            "mvn quarkus:dev -Dgreeting.service=http://localhost:9090 -Dfarewell.service=http://localhost:9091");
+                            "mvn quarkus:dev");
             try {
                 String wait = mvn.waitForStdout("Installed features", "ERROR");
                 if (!wait.equals("Installed features")) {
@@ -58,7 +58,7 @@ public class KubernetesCliPortForwardTest {
             }
 
             try {
-                String cmd = "local connect meeting -who bill -global -pf greeting::9090 -pf farewell::9091";
+                String cmd = "local connect meeting -who bill -global -pf greeting::9090";
 
                 System.out.println("Testing playpen connected: " + "http://" + meetingService);
                 given()
@@ -66,7 +66,7 @@ public class KubernetesCliPortForwardTest {
                         .when().get("/meet")
                         .then()
                         .statusCode(200)
-                        .body(equalTo("Hello developer Goodbye developer cluster"));
+                        .body(startsWith("<h1>Hello developer cluster</h1>"));
 
                 System.out.println("playpen " + cmd);
                 PlaypenCli cli = new PlaypenCli()
@@ -88,7 +88,7 @@ public class KubernetesCliPortForwardTest {
                             .when().get("/meet")
                             .then()
                             .statusCode(200)
-                            .body(equalTo("Hello developer Goodbye developer"));
+                            .body(startsWith("<h1>Hello developer</h1>"));
                 } finally {
                     cli.exit();
                 }
@@ -99,7 +99,7 @@ public class KubernetesCliPortForwardTest {
                         .when().get("/meet")
                         .then()
                         .statusCode(200)
-                        .body(equalTo("Hello developer Goodbye developer cluster"));
+                        .body(startsWith("<h1>Hello developer cluster</h1>"));
             } finally {
                 mvn.exit();
             }

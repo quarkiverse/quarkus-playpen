@@ -1,8 +1,9 @@
 package io.quarkiverse.playpen.deployment;
 
-import java.io.Closeable;
-import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import org.jboss.logging.Logger;
 
@@ -34,7 +35,7 @@ public class PlaypenProcessor {
         return RequireVirtualHttpBuildItem.MARKER;
     }
 
-    static List<Closeable> closeables = new ArrayList<>();
+    static Map<String, PortForward> portForwards = new HashMap<>();
 
     @Record(ExecutionTime.RUNTIME_INIT)
     @BuildStep(onlyIfNot = { IsNormal.class, IsAnyRemoteDev.class })
@@ -45,57 +46,75 @@ public class PlaypenProcessor {
             LocalPlaypenRecorder proxy,
             CuratedApplicationShutdownBuildItem curatedShutdown) {
         if (config.local().connect().isPresent()) {
-            LocalPlaypenConnectionConfig local = new LocalPlaypenConnectionConfig();
+            LocalPlaypenConnectionConfig playpenConfig = new LocalPlaypenConnectionConfig();
             if (config.endpoint().isPresent()) {
-                LocalPlaypenConnectionConfig.fromCli(local, config.endpoint().get());
+                LocalPlaypenConnectionConfig.fromCli(playpenConfig, config.endpoint().get());
             }
             String cli = config.local().connect().get();
 
             // don't reload if -Dplaypen.local.connect and no value
             if (!RemotePlaypenProcessor.isPropertyBlank(cli)) {
-                LocalPlaypenConnectionConfig.fromCli(local, cli);
+                LocalPlaypenConnectionConfig.fromCli(playpenConfig, cli);
             }
-            if (local.who == null) {
+            if (playpenConfig.who == null) {
                 log.error("playpen.local.connect -who must be set");
                 System.exit(1);
             }
-            if (local.connection.startsWith("http")) {
-                DefaultLocalPlaypenClientManager manager = new DefaultLocalPlaypenClientManager(local);
+            if (playpenConfig.connection.startsWith("http")) {
+                DefaultLocalPlaypenClientManager manager = new DefaultLocalPlaypenClientManager(playpenConfig);
                 if (!manager.checkHttpsCerts()) {
                     System.exit(1);
                 }
             } else {
                 KubernetesClient client = KubernetesClientUtils.createClient(config.kubernetesClient());
-                KubernetesLocalPlaypenClientManager manager = new KubernetesLocalPlaypenClientManager(local, client);
-                PortForward portForward = null;
-                try {
-                    portForward = manager.portForward();
-                } catch (IllegalArgumentException e) {
-                    log.error(e.getMessage());
-                    log.error("Maybe playpen does not exist?");
-                    System.exit(1);
-
+                KubernetesLocalPlaypenClientManager manager = new KubernetesLocalPlaypenClientManager(playpenConfig,
+                        client);
+                PortForward ppf = portForwards.get(playpenConfig.connection);
+                if (ppf == null) {
+                    try {
+                        PortForward playpenPortForward = manager.portForward();
+                        log.infov("Established playpen port forward {0}", playpenPortForward.toString());
+                        portForwards.put(playpenConfig.connection, playpenPortForward);
+                    } catch (IllegalArgumentException e) {
+                        log.error(e.getMessage());
+                        log.error("Maybe playpen does not exist?");
+                        System.exit(1);
+                    }
+                } else {
+                    log.info("Reusing playpen port forward");
+                    playpenConfig.host = "localhost";
+                    playpenConfig.port = ppf.getLocalPort();
                 }
-                log.infov("Established playpen port forward {0}", portForward.toString());
-                closeables.add(portForward);
                 curatedShutdown.addCloseTask(() -> {
-                    closeables.forEach(ProxyUtils::safeClose);
+                    portForwards.values().forEach(ProxyUtils::safeClose);
+                    portForwards.clear();
                 }, true);
+                List<String> pfs = new LinkedList<>();
                 if (config.local().portForwards().isPresent()) {
-                    config.local().portForwards().get().forEach(s -> {
-                        try {
-                            PortForward pf = new PortForward(s);
-                            pf.forward(client);
-                            log.infov("Established port forward {0}", pf.toString());
-                            closeables.add(pf);
-                        } catch (IllegalArgumentException e) {
-                            log.error("Could not establish port forward");
-                            log.error(e.getMessage());
-                        }
-                    });
+                    pfs.addAll(config.local().portForwards().get());
                 }
+                if (playpenConfig.portForwards != null) {
+                    pfs.addAll(playpenConfig.portForwards);
+                }
+                pfs.forEach(s -> {
+                    try {
+                        if (portForwards.containsKey(s)) {
+                            log.infov("Reusing port forward {0}", portForwards.get(s));
+                            return;
+                        }
+                        PortForward pf = new PortForward(s);
+                        pf.forward(client);
+                        log.infov("Established port forward {0}", pf.toString());
+                        portForwards.put(s, pf);
+                    } catch (RuntimeException e) {
+                        log.error("Could not establish port forward: " + s);
+                        log.error(e.getMessage());
+                        throw e;
+                    }
+                });
+
             }
-            proxy.init(vertx.getVertx(), shutdown, local, config.local().manualStart());
+            proxy.init(vertx.getVertx(), shutdown, playpenConfig, config.local().manualStart());
         }
     }
 

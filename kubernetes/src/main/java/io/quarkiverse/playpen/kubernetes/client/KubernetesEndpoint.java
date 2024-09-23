@@ -123,6 +123,10 @@ public abstract class KubernetesEndpoint {
         }
     }
 
+    public String getEndpoint() {
+        return endpoint;
+    }
+
     public String getClusterHostname() {
         return clusterHostname;
     }

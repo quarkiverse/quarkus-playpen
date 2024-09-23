@@ -1,6 +1,7 @@
 package io.quarkiverse.playpen.client;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
 
@@ -10,6 +11,7 @@ public class LocalPlaypenConnectionConfig extends BasePlaypenConnectionConfig {
     public boolean ssl;
     public String prefix;
     public boolean onPoll;
+    public List<String> portForwards;
 
     public static LocalPlaypenConnectionConfig fromCli(String cli) {
         LocalPlaypenConnectionConfig config = new LocalPlaypenConnectionConfig();
@@ -25,6 +27,11 @@ public class LocalPlaypenConnectionConfig extends BasePlaypenConnectionConfig {
         parse(config, cli, (key, val) -> {
             if (key.equals("onPoll")) {
                 config.onPoll = val.isEmpty() || val.get(0).equals("true");
+            } else if (key.equals("pf") || key.equals("port-forward")) {
+                if (config.portForwards == null) {
+                    config.portForwards = new ArrayList<>();
+                }
+                config.portForwards.addAll(val);
             } else if (extension != null) {
                 extension.accept(key, val);
             }

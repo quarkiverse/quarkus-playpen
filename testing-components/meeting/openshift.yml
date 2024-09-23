@@ -34,10 +34,8 @@ spec:
     spec:
       containers:
         - env:
-            - name: GREETING_SERVICE
-              value: "http://greeting"
-            - name: FAREWELL_SERVICE
-              value: "http://farewell"
+            - name: GREETING_HOST
+              value: "greeting"
             - name: MEETING_MODE
               value: "cluster"
           image: meeting-service:999-SNAPSHOT

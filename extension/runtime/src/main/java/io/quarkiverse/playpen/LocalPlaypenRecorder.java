@@ -35,6 +35,7 @@ public class LocalPlaypenRecorder {
     }
 
     public static void startSession(Vertx vertx, LocalPlaypenConnectionConfig config) {
+        log.info("Starting playpen session");
         client = new VirtualLocalPlaypenClient();
         HttpClientOptions options = new HttpClientOptions();
         options.setDefaultHost(config.host);

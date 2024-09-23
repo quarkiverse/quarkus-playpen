@@ -31,7 +31,6 @@
     <packaging>pom</packaging>
     <modules>
         <module>greeting</module>
-        <module>farewell</module>
         <module>meeting</module>
         <module>integration-tests</module>
     </modules>
