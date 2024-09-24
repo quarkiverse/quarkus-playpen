@@ -61,7 +61,7 @@ public class KubernetesPlaypenManager implements RemotePlaypenManager {
     }
 
     private List<EnvVar> getCurrentEnv() {
-        Service service = client.services().withName(config.service + "-origin").get();
+        Service service = client.services().withName(config.serviceHost).get();
         LabelSelector selector = new LabelSelector();
         selector.setMatchLabels(service.getSpec().getSelector());
         List<Deployment> list = client.apps().deployments().withLabelSelector(selector).list().getItems();

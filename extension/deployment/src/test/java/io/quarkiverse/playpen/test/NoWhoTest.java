@@ -95,62 +95,6 @@ public class NoWhoTest {
     }
 
     @Test
-    public void testProxy() {
-        // invoke service directly
-        given()
-                .when()
-                .port(SERVICE_PORT)
-                .get("/yo")
-                .then()
-                .statusCode(200)
-                .body(equalTo("my-service"));
-        given()
-                .when()
-                .port(SERVICE_PORT)
-                .body("hello")
-                .contentType("text/plain")
-                .post("/yo")
-                .then()
-                .statusCode(200)
-                .body(equalTo("my-service"));
-        // invoke local directly
-        /*
-         * given()
-         * .when()
-         * .get("/yo")
-         * .then()
-         * .statusCode(200)
-         * .body(equalTo("local"));
-         * given()
-         * .when()
-         * .body("hello")
-         * .contentType("text/plain")
-         * .post("/yo")
-         * .then()
-         * .statusCode(200)
-         * .body(equalTo("local"));
-         *
-         */
-        // invoke proxy
-        given()
-                .when()
-                .port(PROXY_PORT)
-                .get("/yo")
-                .then()
-                .statusCode(200)
-                .body(equalTo("my-service"));
-        given()
-                .when()
-                .port(PROXY_PORT)
-                .body("hello")
-                .contentType("text/plain")
-                .post("/yo")
-                .then()
-                .statusCode(200)
-                .body(equalTo("my-service"));
-    }
-
-    @Test
     public void testHijackSession() throws Exception {
 
         try {

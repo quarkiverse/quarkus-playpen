@@ -36,6 +36,8 @@ public class PlaypenProcessor {
     }
 
     static Map<String, PortForward> portForwards = new HashMap<>();
+    static String lastConnect;
+    static String lastEndpoint;
 
     @Record(ExecutionTime.RUNTIME_INIT)
     @BuildStep(onlyIfNot = { IsNormal.class, IsAnyRemoteDev.class })
@@ -46,15 +48,22 @@ public class PlaypenProcessor {
             LocalPlaypenRecorder proxy,
             CuratedApplicationShutdownBuildItem curatedShutdown) {
         if (config.local().connect().isPresent()) {
-            LocalPlaypenConnectionConfig playpenConfig = new LocalPlaypenConnectionConfig();
-            if (config.endpoint().isPresent()) {
-                LocalPlaypenConnectionConfig.fromCli(playpenConfig, config.endpoint().get());
-            }
-            String cli = config.local().connect().get();
+            if (lastConnect != null && lastConnect.equals(config.local().connect().get())) {
+                if (lastEndpoint != null && config.endpoint().isPresent() && lastEndpoint.equals(config.endpoint().get())) {
 
+                }
+            }
+
+            LocalPlaypenConnectionConfig playpenConfig = new LocalPlaypenConnectionConfig();
+            lastEndpoint = config.endpoint().orElse(null);
+            if (config.endpoint().isPresent()) {
+                LocalPlaypenConnectionConfig.fromCli(playpenConfig, lastEndpoint);
+            }
+
+            lastConnect = config.local().connect().get();
             // don't reload if -Dplaypen.local.connect and no value
-            if (!RemotePlaypenProcessor.isPropertyBlank(cli)) {
-                LocalPlaypenConnectionConfig.fromCli(playpenConfig, cli);
+            if (!RemotePlaypenProcessor.isPropertyBlank(lastConnect)) {
+                LocalPlaypenConnectionConfig.fromCli(playpenConfig, lastConnect);
             }
             if (playpenConfig.who == null) {
                 String username = System.getProperty("user.name");
