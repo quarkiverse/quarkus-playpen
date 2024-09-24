@@ -49,7 +49,9 @@ public class Connect extends BaseCommand implements Callable<Integer> {
     public Integer call() throws Exception {
 
         LocalPlaypenConnectionConfig config = new LocalPlaypenConnectionConfig();
-        baseOptions.setConfig(config);
+        if (!baseOptions.setConfig(output, config)) {
+            return CommandLine.ExitCode.SOFTWARE;
+        }
         LocalPlaypenConnectionConfig.setHttpLocation(config);
         config.onPoll = onPoll;
         if (config.error != null) {

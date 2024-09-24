@@ -83,7 +83,7 @@ public abstract class BaseCliLocalTest {
         PlaypenCli cli = new PlaypenCli()
                 .executeAsync(cmd);
         try {
-            String found = cli.waitForStdout("Control-C", "[ERROR]", "[WARN]", "Usage");
+            String found = cli.waitForStdout("Control-C", "[ERROR]", "Usage");
             if (!found.equals("Control-C")) {
                 throw new RuntimeException("Failed to start CLI");
             }

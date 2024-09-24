@@ -312,8 +312,15 @@ public class RemotePlaypenProcessor {
             RemotePlaypenConnectionConfig.fromCli(remoteConfig, command);
         }
         if (remoteConfig.who == null) {
-            log.error("playpen.remote.command -who must be set");
-            terminate();
+            String username = System.getProperty("user.name");
+            if (username != null && !username.isEmpty()) {
+                log.warn(
+                        "Your login username is being used as a session id.  Use playpen.remote.connect -who to set it to a different value");
+                remoteConfig.who = username;
+            } else {
+                log.error("playpen.remote.connect -who must be set");
+                terminate();
+            }
         }
         RemotePlaypenClient remoteClient = null;
         if (remoteConfig.connection == null && !liveReload.url.isPresent()) {

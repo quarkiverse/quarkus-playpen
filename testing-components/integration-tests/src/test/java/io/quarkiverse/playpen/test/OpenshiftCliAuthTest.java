@@ -29,7 +29,7 @@ public class OpenshiftCliAuthTest extends KubernetesCliAuthTest {
                     .executeAsync(cmd);
             try {
 
-                String found = cli.waitForStdout("Could not authenticate", "Control-C", "[ERROR]", "[WARN]", "Usage");
+                String found = cli.waitForStdout("Could not authenticate", "Control-C", "[ERROR]", "Usage");
                 if (!found.equals("Could not authenticate")) {
                     throw new RuntimeException("Failed to start CLI");
                 }

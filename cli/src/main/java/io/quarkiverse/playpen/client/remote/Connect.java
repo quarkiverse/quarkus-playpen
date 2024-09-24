@@ -34,7 +34,9 @@ public class Connect extends BaseCommand implements Callable<Integer> {
     @Override
     public Integer call() throws Exception {
         RemotePlaypenConnectionConfig config = new RemotePlaypenConnectionConfig();
-        baseOptions.setConfig(config);
+        if (!baseOptions.setConfig(output, config)) {
+            return CommandLine.ExitCode.SOFTWARE;
+        }
         config.host = host;
 
         RemotePlaypenClient client = null;

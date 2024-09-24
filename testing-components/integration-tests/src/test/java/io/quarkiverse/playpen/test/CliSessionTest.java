@@ -78,7 +78,7 @@ public class CliSessionTest {
                         "local connect http://localhost:" + CLIENT_API_PORT
                                 + " -who john --query=user=john -path /users/john");
         try {
-            String found = cli.waitForStdout("Control-C", "[ERROR]", "[WARN]");
+            String found = cli.waitForStdout("Control-C", "[ERROR]");
             if (!found.equals("Control-C")) {
                 throw new RuntimeException("Failed to start CLI");
             }

@@ -22,6 +22,9 @@ public class OpenshiftCliLocalExposeTest extends BaseCliLocalTest {
             Thread.sleep(4000);
             String cmd = "local connect greeting -who bill -hijack";
             test(cmd);
+            // Test with no -who set that it defaults to username
+            cmd = "local connect greeting -hijack";
+            test(cmd);
         } finally {
             PlaypenUtil.deletePlaypen(client, "greeting");
             client.resource(config).delete();

@@ -5,10 +5,11 @@ import static picocli.CommandLine.Help.Visibility.NEVER;
 import java.util.List;
 
 import io.quarkiverse.playpen.client.BasePlaypenConnectionConfig;
+import io.quarkiverse.playpen.utils.PlaypenLogger;
 import picocli.CommandLine;
 
 public class ConnectMixin {
-    @CommandLine.Option(names = { "-w", "--w", "-who", "--who" }, required = true)
+    @CommandLine.Option(names = { "-w", "--w", "-who", "--who" })
     public String who;
 
     @CommandLine.Option(names = { "-q", "--q",
@@ -42,7 +43,7 @@ public class ConnectMixin {
     @CommandLine.Parameters(index = "0", description = "location of playpen server")
     public String uri;
 
-    public void setConfig(BasePlaypenConnectionConfig config) {
+    public boolean setConfig(PlaypenLogger log, BasePlaypenConnectionConfig config) {
         config.connection = uri;
         config.paths = paths;
         config.headers = headers;
@@ -55,6 +56,17 @@ public class ConnectMixin {
         if (!"UNSET".equals(clientIp)) {
             config.clientIp = clientIp;
         }
+        if (who == null) {
+            String username = System.getProperty("user.name");
+            if (username != null && !username.isEmpty()) {
+                log.warn("Your login username is being used as a session id.  Use -who to set it to a different value");
+                config.who = username;
+            } else {
+                log.error("-who must be set");
+                return false;
+            }
+        }
+        return true;
 
     }
 }

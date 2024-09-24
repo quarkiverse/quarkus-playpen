@@ -57,8 +57,15 @@ public class PlaypenProcessor {
                 LocalPlaypenConnectionConfig.fromCli(playpenConfig, cli);
             }
             if (playpenConfig.who == null) {
-                log.error("playpen.local.connect -who must be set");
-                System.exit(1);
+                String username = System.getProperty("user.name");
+                if (username != null && !username.isEmpty()) {
+                    log.warn(
+                            "Your login username is being used as a session id.  Use playpen.local.connect -who to set it to a different value");
+                    playpenConfig.who = username;
+                } else {
+                    log.error("playpen.local.connect -who must be set");
+                    System.exit(1);
+                }
             }
             if (playpenConfig.connection.startsWith("http")) {
                 DefaultLocalPlaypenClientManager manager = new DefaultLocalPlaypenClientManager(playpenConfig);

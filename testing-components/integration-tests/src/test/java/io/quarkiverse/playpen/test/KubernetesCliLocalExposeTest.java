@@ -25,6 +25,9 @@ public class KubernetesCliLocalExposeTest extends BaseCliLocalTest {
             for (int i = 0; i < 2; i++) {
                 test(cmd);
             }
+            // Test with no -who set that it defaults to username
+            cmd = "local connect greeting -hijack";
+            test(cmd);
         } finally {
             PlaypenUtil.deletePlaypen(client, "greeting");
             client.resource(config).delete();
