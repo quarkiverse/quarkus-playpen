@@ -173,7 +173,7 @@ Playpen Configs are Kubernetes records that define the default
 configuration for created Playpens.
 
 **NOTE** It is highly recommended that you create a PlaypenConfig
-within the `quarkus` namespace calls `global`.
+within the `quarkus` namespace calls `hijack`.
 
 ```yaml
 apiVersion: "io.quarkiverse.playpen/v1"
@@ -320,28 +320,28 @@ session.
 
 The connection URL also can define connection parameters.
 
-`http[s]://foo/local/john?global=true`
+`http[s]://foo/local/john?hijack=true`
 
 #### Local Config parameters
 
-* **global** - **true|false**.  If `true`, all requests to the 
+* **hijack** - **true|false**.  If `true`, all requests to the 
 service will be sent to the developer's laptop.  
-* **path** - **path-prefix**.  If set, and `global=false` the playpen
+* **path** - **path-prefix**.  If set, and `hijack=false` the playpen
 proxy will route requests to the developer's laptop if the 
 HTTP request has the path prefix specified
-* **query** - **\<name>=\<value>**  If set and `global=false` the playpen
+* **query** - **\<name>=\<value>**  If set and `hijack=false` the playpen
   proxy will route requests to the developer's laptop if the
   HTTP request has a query parameter with name and value.
-* **header** - **\<name>=\<value>**  If set and `global=false` the playpen
+* **header** - **\<name>=\<value>**  If set and `hijack=false` the playpen
   proxy will route requests to the developer's laptop if the
   HTTP request has a header with a specific value
-* **clientIp** - **client-ip-address** If set and `global=false` the playpen
+* **clientIp** - **client-ip-address** If set and `hijack=false` the playpen
   proxy will route requests to the developer's laptop if the client ip address
 matches.
 
 Multiple session matches can be defined within the connection string
 
-If `global=false`, by default, if the `X-Playpen-Session` header or cookie
+If `hijack=false`, by default, if the `X-Playpen-Session` header or cookie
 is set within the request with a value of `who-ami-i`, then the request will
 be routed to the developer's laptop.
 
@@ -352,7 +352,7 @@ deployed in the `default` namespace.
 Example URL connection string if there's a nodeport used.  All requests
 will be sent to the developer's laptop
 
-`http://192.168.49.2:32007/local/john?global=true`
+`http://192.168.49.2:32007/local/john?hijack=true`
 
 Example URL connection string if there's an ingress with
 `host` of `devcluster` used.  Requests that contain the `X-Playpen-Session`
@@ -386,7 +386,7 @@ will be disconnected and removed.
 ### Start the connection with the Playpen CLI
 
 ```shell
-playpen local connect --credentials=mysecret --local-port=8080 http://192.168.49.2:32007/local/john?global=true
+playpen local connect --credentials=mysecret --local-port=8080 http://192.168.49.2:32007/local/john?hijack=true
 ```
 `credentials` does not have to be specified if there is no authentication policy
 set up for the playpen
@@ -434,7 +434,7 @@ session.
 
 The connection URL also can define connection parameters.
 
-`http[s]://foo/remote/john?global=true`
+`http[s]://foo/remote/john?hijack=true`
 
 #### Remote connection parameters
 
@@ -500,7 +500,7 @@ the playpen to reroute requests to an existing pod running within the
 dev cluster.
 
 ```shell
-mvn quarkus:remote-dev -Dquarkus.playpen.remote="http://devcluster/greeting-playpen-default/remote/john?global=true&host=10.244.0.253" \
+mvn quarkus:remote-dev -Dquarkus.playpen.remote="http://devcluster/greeting-playpen-default/remote/john?hijack=true&host=10.244.0.253" \
      -Dquarkus.playpen.credentials="mysecret"
 ```
 

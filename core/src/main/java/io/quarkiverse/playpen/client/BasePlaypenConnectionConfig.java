@@ -15,7 +15,7 @@ public class BasePlaypenConnectionConfig {
     public boolean useClientIp;
     public String clientIp;
     public String credentials;
-    public boolean isGlobal;
+    public boolean hijack;
     public boolean trustCert;
     public String who;
 
@@ -44,8 +44,8 @@ public class BasePlaypenConnectionConfig {
                 queryParams = addQueryParam(queryParams, "path=" + path);
             }
         }
-        if (isGlobal) {
-            queryParams = addQueryParam(queryParams, "global=true");
+        if (hijack) {
+            queryParams = addQueryParam(queryParams, "hijack=true");
         }
         if (useClientIp) {
             String param = "clientIp";
@@ -130,11 +130,11 @@ public class BasePlaypenConnectionConfig {
                 if (!val.isEmpty()) {
                     playpen.clientIp = val.get(0);
                 }
-            } else if (key.equals("global") || key.equals("g")) {
+            } else if (key.equals("hijack")) {
                 if (val.isEmpty()) {
-                    playpen.isGlobal = true;
+                    playpen.hijack = true;
                 } else {
-                    playpen.isGlobal = "true".equalsIgnoreCase(val.get(0));
+                    playpen.hijack = "true".equalsIgnoreCase(val.get(0));
                 }
             } else if (key.equals("trustCert")) {
                 if (val.isEmpty()) {

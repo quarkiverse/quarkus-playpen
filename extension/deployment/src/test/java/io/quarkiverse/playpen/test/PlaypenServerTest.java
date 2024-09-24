@@ -33,7 +33,7 @@ public class PlaypenServerTest {
     public static final int CLIENT_API_PORT = 9093;
 
     private static final String APP_PROPS = "" +
-            "playpen.local.connect=http://localhost:9093 -who bill -global\n"
+            "playpen.local.connect=http://localhost:9093 -who bill -hijack\n"
             + "playpen.local.manual-start=true\n";
 
     @RegisterExtension
@@ -151,7 +151,7 @@ public class PlaypenServerTest {
     }
 
     @Test
-    public void testGlobalSession() throws Exception {
+    public void testHijackSession() throws Exception {
 
         try {
             LocalPlaypenRecorder.startSession();

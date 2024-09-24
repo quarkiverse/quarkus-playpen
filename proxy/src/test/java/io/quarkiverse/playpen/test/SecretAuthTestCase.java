@@ -92,7 +92,7 @@ public class SecretAuthTestCase {
     @Test
     public void testBaseSecret() {
         LocalPlaypenClient client = LocalPlaypenClient.create(vertx)
-                .playpen("http://localhost:8082 -who bill -global")
+                .playpen("http://localhost:8082 -who bill -hijack")
                 .service("localhost", 9092, false)
                 .secretAuth("badpassword")
                 .build();
@@ -100,9 +100,9 @@ public class SecretAuthTestCase {
     }
 
     @Test
-    public void testGlobalSession() throws Exception {
+    public void testHijackSession() throws Exception {
         LocalPlaypenClient client = LocalPlaypenClient.create(vertx)
-                .playpen("http://localhost:8082 -who bill -global")
+                .playpen("http://localhost:8082 -who bill -hijack")
                 .service("localhost", 9092, false)
                 .credentials("geheim")
                 .build();

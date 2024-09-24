@@ -21,7 +21,7 @@ public class KubernetesCliLocalExposeTest extends BaseCliLocalTest {
         try {
             PlaypenUtil.createPlaypen(client, "greeting", configName);
             Thread.sleep(2000);
-            String cmd = "local connect greeting -who bill -global";
+            String cmd = "local connect greeting -who bill -hijack";
             for (int i = 0; i < 2; i++) {
                 test(cmd);
             }
@@ -57,7 +57,7 @@ public class KubernetesCliLocalExposeTest extends BaseCliLocalTest {
                 Thread.sleep(100);
             }
 
-            String cmd = "local connect http://" + nodeHost + "/greeting-playpen-it -who bill -global";
+            String cmd = "local connect http://" + nodeHost + "/greeting-playpen-it -who bill -hijack";
             test(cmd);
             Thread.sleep(100);
         } finally {
@@ -91,7 +91,7 @@ public class KubernetesCliLocalExposeTest extends BaseCliLocalTest {
                 Thread.sleep(100);
             }
 
-            String cmd = "local connect http://greeting-playpen-it." + nodeHost + " -who bill -global";
+            String cmd = "local connect http://greeting-playpen-it." + nodeHost + " -who bill -hijack";
             test(cmd);
             Thread.sleep(100);
         } finally {

@@ -24,7 +24,7 @@ public class OpenshiftCliAuthTest extends KubernetesCliAuthTest {
             Thread.sleep(4000);
 
             System.out.println("Test no pw specified...");
-            String cmd = "local connect greeting -who bill -global";
+            String cmd = "local connect greeting -who bill -hijack";
             PlaypenCli cli = new PlaypenCli()
                     .executeAsync(cmd);
             try {

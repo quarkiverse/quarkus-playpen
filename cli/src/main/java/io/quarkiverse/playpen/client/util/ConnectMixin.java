@@ -36,8 +36,8 @@ public class ConnectMixin {
     public boolean trustCert;
 
     @CommandLine.Option(names = {
-            "-g", "--g", "-global", "--global" }, defaultValue = "false", description = "port of local process")
-    public boolean global;
+            "-hijack", "--hijack" }, defaultValue = "false", description = "route all requests to playpen")
+    public boolean hijack;
 
     @CommandLine.Parameters(index = "0", description = "location of playpen server")
     public String uri;
@@ -47,7 +47,7 @@ public class ConnectMixin {
         config.paths = paths;
         config.headers = headers;
         config.queries = queries;
-        config.isGlobal = global;
+        config.hijack = hijack;
         config.trustCert = trustCert;
         config.credentials = credentials;
         config.useClientIp = clientIp != null;

@@ -158,8 +158,8 @@ public class RemoteDevPlaypenServer {
                 context.request().setURI(tmp);
             } else {
                 // add session header to request if it is not already there
-                // and we are not part of a global session
-                if (master.globalSession != this
+                // and we are not part of a hijack session
+                if (master.hijackSession != this
                         && !context.request().headers().contains(PlaypenProxyConstants.SESSION_HEADER)) {
                     context.request().headers().add(PlaypenProxyConstants.SESSION_HEADER, who);
                 }
@@ -480,8 +480,8 @@ public class RemoteDevPlaypenServer {
     public void liveCode(RoutingContext ctx) {
         String who = ctx.pathParam("who");
         Playpen playpen = master.sessions.get(who);
-        if (playpen == null && isGlobal(who)) {
-            playpen = master.globalSession;
+        if (playpen == null && isHijack(who)) {
+            playpen = master.hijackSession;
         }
         if (!(playpen instanceof RemoteDevPlaypen)) {
             playpen = null;
@@ -501,7 +501,7 @@ public class RemoteDevPlaypenServer {
         String who = ctx.pathParam("who");
         log.debugv("Establish connection for {0}", who);
         List<PlaypenMatcher> matchers = new ArrayList<>();
-        boolean isGlobal = false;
+        boolean isHijack = false;
         String host = null;
         boolean cleanup = false;
         for (Map.Entry<String, String> entry : ctx.queryParams()) {
@@ -532,32 +532,32 @@ public class RemoteDevPlaypenServer {
                 if (ip == null) {
                     ip = ctx.request().remoteAddress().hostAddress();
                 }
-            } else if ("global".equals(key) && "true".equals(value)) {
-                isGlobal = true;
+            } else if ("hijack".equals(key) && "true".equals(value)) {
+                isHijack = true;
             } else if ("host".equals(key)) {
                 host = value;
             } else if ("cleanup".equals(key)) {
                 cleanup = Boolean.parseBoolean(value);
             }
         }
-        log.debugv("Is global session: {0}", isGlobal);
+        log.debugv("Is hijack session: {0}", isHijack);
 
         // We close existing connections with same who if they are not LocalDevPlaypens
         // or authorization fails.
-        if (isGlobal) {
-            if (master.globalSession != null) {
-                if (!who.equals(master.globalSession.whoami())) {
-                    log.errorv("Failed Client Connect for global session: Existing connection {0}", who);
+        if (isHijack) {
+            if (master.hijackSession != null) {
+                if (!who.equals(master.hijackSession.whoami())) {
+                    log.errorv("Failed Client Connect for hijack session: Existing connection {0}", who);
                     ctx.response().setStatusCode(409).putHeader("Content-Type", "text/plain")
-                            .end(master.globalSession.whoami());
+                            .end(master.hijackSession.whoami());
                     return;
                 }
-                if (!(master.globalSession instanceof RemoteDevPlaypen)) {
-                    Playpen tmp = master.globalSession;
-                    master.globalSession = null;
+                if (!(master.hijackSession instanceof RemoteDevPlaypen)) {
+                    Playpen tmp = master.hijackSession;
+                    master.hijackSession = null;
                     tmp.close();
                 } else {
-                    log.debugv("connecting to existing global session");
+                    log.debugv("connecting to existing hijack session");
                     master.auth.authenticate(ctx, () -> {
                         ctx.response().setStatusCode(204).end();
                     });
@@ -579,10 +579,10 @@ public class RemoteDevPlaypenServer {
                 }
             }
         }
-        boolean finalIsGlobal = isGlobal;
+        boolean finalIsHijack = isHijack;
         boolean finalCleanup = cleanup;
         String finalHost = host;
-        log.debugv("Creating new session: {0} {1}", isGlobal, finalHost);
+        log.debugv("Creating new session: {0} {1}", isHijack, finalHost);
         master.auth.authenticate(ctx, () -> {
             vertx.executeBlocking(() -> {
                 if (finalHost == null) {
@@ -595,7 +595,7 @@ public class RemoteDevPlaypenServer {
                             ctx.response().setStatusCode(400).putHeader("Content-Type", "text/plain")
                                     .end("Cannot resolve remote playpen endpoint");
                         }
-                        setupSession(ctx, theHost, who, matchers, finalIsGlobal, finalCleanup);
+                        setupSession(ctx, theHost, who, matchers, finalIsHijack, finalCleanup);
                     } catch (Exception e) {
                         log.error("Failed to setup session", e);
                         ctx.response().setStatusCode(500).end();
@@ -606,7 +606,7 @@ public class RemoteDevPlaypenServer {
                         log.debugv("Resolve playpen for session {0}", finalHost);
                         String clusterHost = manager.getHost(finalHost);
                         log.debugv("clusterHost: " + clusterHost);
-                        setupSession(ctx, clusterHost, who, matchers, finalIsGlobal, false);
+                        setupSession(ctx, clusterHost, who, matchers, finalIsHijack, false);
                     } catch (IllegalArgumentException ill) {
                         log.error("Cannot resolve host: " + ill.getMessage());
                         ctx.response().setStatusCode(400).putHeader("Content-Type", "text/plain")
@@ -624,12 +624,12 @@ public class RemoteDevPlaypenServer {
 
     protected Map<String, RemoteDevPlaypen> remoteSessions = new ConcurrentHashMap<>();
 
-    private void setupSession(RoutingContext ctx, String host, String who, List<PlaypenMatcher> matchers, boolean finalIsGlobal,
+    private void setupSession(RoutingContext ctx, String host, String who, List<PlaypenMatcher> matchers, boolean finalIsHijack,
             boolean deleteOnClose) {
         RemoteDevPlaypen newSession = new RemoteDevPlaypen(host, who, deleteOnClose);
         newSession.matchers = matchers;
-        if (finalIsGlobal) {
-            master.globalSession = newSession;
+        if (finalIsHijack) {
+            master.hijackSession = newSession;
         } else {
             newSession.matchers.add(new HeaderOrCookieMatcher(PlaypenProxyConstants.SESSION_HEADER, who));
             master.sessions.put(who, newSession);
@@ -657,8 +657,8 @@ public class RemoteDevPlaypenServer {
         }
     }
 
-    private boolean isGlobal(String who) {
-        return master.globalSession != null && master.globalSession.whoami().equals(who);
+    private boolean isHijack(String who) {
+        return master.hijackSession != null && master.hijackSession.whoami().equals(who);
     }
 
 }

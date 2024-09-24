@@ -20,7 +20,7 @@ public class OpenshiftCliLocalExposeTest extends BaseCliLocalTest {
         try {
             PlaypenUtil.createPlaypen(client, "greeting", configName);
             Thread.sleep(4000);
-            String cmd = "local connect greeting -who bill -global";
+            String cmd = "local connect greeting -who bill -hijack";
             test(cmd);
         } finally {
             PlaypenUtil.deletePlaypen(client, "greeting");
@@ -42,7 +42,7 @@ public class OpenshiftCliLocalExposeTest extends BaseCliLocalTest {
         try {
             PlaypenUtil.createPlaypen(client, "greeting", configName);
             Thread.sleep(4000);
-            String cmd = "local connect http://greeting-playpen-it." + nodeHost + " -who bill -global";
+            String cmd = "local connect http://greeting-playpen-it." + nodeHost + " -who bill -hijack";
             test(cmd);
         } finally {
             PlaypenUtil.deletePlaypen(client, "greeting");
@@ -64,7 +64,7 @@ public class OpenshiftCliLocalExposeTest extends BaseCliLocalTest {
         try {
             PlaypenUtil.createPlaypen(client, "greeting", configName);
             Thread.sleep(4000);
-            String cmd = "local connect https://greeting-playpen-it." + nodeHost + " -who bill -global -trustCert";
+            String cmd = "local connect https://greeting-playpen-it." + nodeHost + " -who bill -hijack -trustCert";
             test(cmd);
         } finally {
             PlaypenUtil.deletePlaypen(client, "greeting");

@@ -31,7 +31,7 @@ public class KubernetesCliAuthTest extends BaseCliLocalTest {
             String secretValue = new String(Base64.getDecoder().decode(encoded), StandardCharsets.UTF_8);
 
             System.out.println("Test no secret specified...");
-            String cmd = "local connect greeting -who bill -global";
+            String cmd = "local connect greeting -who bill -hijack";
             PlaypenCli cli = new PlaypenCli()
                     .executeAsync(cmd);
             try {

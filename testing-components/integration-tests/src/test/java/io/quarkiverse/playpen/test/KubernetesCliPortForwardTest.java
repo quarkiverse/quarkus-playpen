@@ -58,7 +58,7 @@ public class KubernetesCliPortForwardTest {
             }
 
             try {
-                String cmd = "local connect meeting -who bill -global -pf greeting::9090";
+                String cmd = "local connect meeting -who bill -hijack -pf greeting::9090";
 
                 System.out.println("Testing playpen connected: " + "http://" + meetingService);
                 given()

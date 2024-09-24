@@ -30,7 +30,7 @@ public class PlaypenProxy {
     protected HttpProxy proxy;
     //protected ReverseProxy proxy2;
     protected Map<String, Playpen> sessions = new ConcurrentHashMap<>();
-    protected volatile Playpen globalSession;
+    protected volatile Playpen hijackSession;
     protected PlaypenAuth auth = new NoAuth();
     protected LocalDevPlaypenServer local = new LocalDevPlaypenServer();
     protected RemoteDevPlaypenServer remote = new RemoteDevPlaypenServer();
@@ -155,9 +155,9 @@ public class PlaypenProxy {
             }
         }
         if (found == null) {
-            found = globalSession;
+            found = hijackSession;
             if (found != null) {
-                log.debug("forward to global session");
+                log.debug("forward to hijack session");
             }
         } else {
             log.debugv("forward to session {0}", found.whoami());
@@ -187,10 +187,10 @@ public class PlaypenProxy {
 
     public Playpen getPlaypenForDeletion(String who) {
         Playpen playpen = null;
-        if (globalSession != null && globalSession.whoami().equals(who)) {
-            playpen = globalSession;
-            globalSession = null;
-            log.debugv("deleting globalSession {0}", who);
+        if (hijackSession != null && hijackSession.whoami().equals(who)) {
+            playpen = hijackSession;
+            hijackSession = null;
+            log.debugv("deleting hijackSession {0}", who);
         }
         if (playpen == null) {
             playpen = sessions.remove(who);

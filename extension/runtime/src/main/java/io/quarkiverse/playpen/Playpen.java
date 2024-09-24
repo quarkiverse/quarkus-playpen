@@ -9,8 +9,6 @@ public class Playpen {
      * Is server is involved within a playpen session request chain?
      * If so, return it. Basically looks for the playpen session header.
      *
-     * FYI: global sessions don't need to propagate a session header.
-     *
      * @return session name, null if no session exists
      */
     public static String current() {

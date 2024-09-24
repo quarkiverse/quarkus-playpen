@@ -83,7 +83,7 @@ Look for the Nodeport under the "Ports" column.  You'll
 need that port to connect to the greeting service playpen proxy.
 
 ```shell
-mvnw quarkus:dev -Dquarkus.playpen.local="http://`minikube ip`:32233/local/john?global=true"
+mvnw quarkus:dev -Dquarkus.playpen.local="http://`minikube ip`:32233/local/john?hijack=true"
 ```
 
 Replace `32233` with the nodeport of the `greeting-playpen` service.  Replace

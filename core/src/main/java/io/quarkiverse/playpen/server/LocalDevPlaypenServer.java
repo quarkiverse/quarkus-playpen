@@ -98,8 +98,8 @@ public class LocalDevPlaypenServer {
                 pollResponse.headers().add(PlaypenProxyConstants.HEADER_FORWARD_PREFIX + key, val);
             });
             // add session header to request if it is not already there
-            // and we are not part of a global session
-            if (master.globalSession != session && !proxiedRequest.headers().contains(PlaypenProxyConstants.SESSION_HEADER)) {
+            // and we are not part of a hijack session
+            if (master.hijackSession != session && !proxiedRequest.headers().contains(PlaypenProxyConstants.SESSION_HEADER)) {
                 pollResponse.headers().add(PlaypenProxyConstants.HEADER_FORWARD_PREFIX + PlaypenProxyConstants.SESSION_HEADER,
                         session.who);
             }
@@ -380,8 +380,9 @@ public class LocalDevPlaypenServer {
 
     public void clientConnect(RoutingContext ctx) {
         // TODO: add security 401 protocol
+        log.debugv("client connect: {0}", ctx.request().uri());
         String who = ctx.pathParam("who");
-        boolean isGlobal = false;
+        boolean isHijack = false;
         boolean onPoll = false;
         List<PlaypenMatcher> matchers = new ArrayList<>();
         for (Map.Entry<String, String> entry : ctx.queryParams()) {
@@ -413,28 +414,28 @@ public class LocalDevPlaypenServer {
                     ip = ctx.request().remoteAddress().hostAddress();
                 }
                 matchers.add(new ClientIpMatcher(ip));
-            } else if ("global".equals(key) && "true".equals(value)) {
-                isGlobal = true;
+            } else if ("hijack".equals(key) && "true".equals(value)) {
+                isHijack = true;
             } else if ("onPoll".equals(key)) {
                 onPoll = value == null ? true : "true".equals(value);
             }
         }
         // We close existing connections with same who if they are not LocalDevPlaypens
         // or authorization fails.
-        if (isGlobal) {
-            if (master.globalSession != null) {
-                if (!who.equals(master.globalSession.whoami())) {
-                    log.errorv("Failed Client Connect for global session: Existing connection {0}", who);
+        if (isHijack) {
+            if (master.hijackSession != null) {
+                if (!who.equals(master.hijackSession.whoami())) {
+                    log.errorv("Failed Client Connect for hijack session: Existing connection {0}", who);
                     ctx.response().setStatusCode(409).putHeader("Content-Type", "text/plain")
-                            .end(master.globalSession.whoami());
+                            .end(master.hijackSession.whoami());
                     return;
                 }
-                if (!(master.globalSession instanceof LocalDevPlaypen)) {
-                    Playpen tmp = master.globalSession;
-                    master.globalSession = null;
+                if (!(master.hijackSession instanceof LocalDevPlaypen)) {
+                    Playpen tmp = master.hijackSession;
+                    master.hijackSession = null;
                     tmp.close();
                 } else {
-                    LocalDevPlaypen session = (LocalDevPlaypen) master.globalSession;
+                    LocalDevPlaypen session = (LocalDevPlaypen) master.hijackSession;
                     if (master.auth.authorized(ctx, session)) {
                         ctx.response().setStatusCode(204)
                                 .putHeader(PlaypenProxyConstants.POLL_TIMEOUT, Long.toString(session.pollTimeout))
@@ -442,8 +443,8 @@ public class LocalDevPlaypenServer {
                                 .end();
                         return;
                     } else {
-                        Playpen tmp = master.globalSession;
-                        master.globalSession = null;
+                        Playpen tmp = master.hijackSession;
+                        master.hijackSession = null;
                         tmp.close();
                     }
                 }
@@ -469,14 +470,16 @@ public class LocalDevPlaypenServer {
                 }
             }
         }
-        boolean finalIsGlobal = isGlobal;
+        boolean finalIsHijack = isHijack;
         boolean finalOnPoll = onPoll;
         master.auth.authenticate(ctx, () -> {
             LocalDevPlaypen newSession = new LocalDevPlaypen(who);
             newSession.onPoll = finalOnPoll;
-            if (finalIsGlobal) {
-                master.globalSession = newSession;
+            if (finalIsHijack) {
+                log.debug("Hijack session started");
+                master.hijackSession = newSession;
             } else {
+                log.debug("Session started");
                 matchers.add(new HeaderOrCookieMatcher(PlaypenProxyConstants.SESSION_HEADER, who));
                 newSession.matchers = matchers;
                 master.sessions.put(who, newSession);
@@ -496,8 +499,8 @@ public class LocalDevPlaypenServer {
 
     private LocalDevPlaypen getPlaypen(String who) {
         Playpen session = master.sessions.get(who);
-        if (session == null && master.globalSession != null && master.globalSession.whoami().equals(who)) {
-            session = master.globalSession;
+        if (session == null && master.hijackSession != null && master.hijackSession.whoami().equals(who)) {
+            session = master.hijackSession;
         }
         if (session instanceof LocalDevPlaypen) {
             return (LocalDevPlaypen) session;

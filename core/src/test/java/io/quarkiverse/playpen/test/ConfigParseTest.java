@@ -9,7 +9,7 @@ public class ConfigParseTest {
 
     @Test
     public void testHttpMinus() {
-        String cli = "http://foo/prefix -who bill -query x=x -query y=y -p /foo -p /bar -header h=h -ip 192 -g";
+        String cli = "http://foo/prefix -who bill -query x=x -query y=y -p /foo -p /bar -header h=h -ip 192 -hijack";
         LocalPlaypenConnectionConfig config = LocalPlaypenConnectionConfig.fromCli(cli);
         Assertions.assertEquals("foo", config.host);
         Assertions.assertEquals(80, config.port);
@@ -28,13 +28,13 @@ public class ConfigParseTest {
         Assertions.assertEquals("h=h", config.headers.get(0));
         Assertions.assertNotNull(config.clientIp);
         Assertions.assertEquals("192", config.clientIp);
-        Assertions.assertTrue(config.isGlobal);
+        Assertions.assertTrue(config.hijack);
 
     }
 
     @Test
     public void testHttpMinusMinus() {
-        String cli = "http://foo/prefix --who=bill --query=x=x --query=y=y --path=/foo --path=/bar --header=h=h --clientIp=192 --global";
+        String cli = "http://foo/prefix --who=bill --query=x=x --query=y=y --path=/foo --path=/bar --header=h=h --clientIp=192 --hijack";
         LocalPlaypenConnectionConfig config = LocalPlaypenConnectionConfig.fromCli(cli);
         Assertions.assertEquals("foo", config.host);
         Assertions.assertEquals(80, config.port);
@@ -53,7 +53,7 @@ public class ConfigParseTest {
         Assertions.assertEquals("h=h", config.headers.get(0));
         Assertions.assertNotNull(config.clientIp);
         Assertions.assertEquals("192", config.clientIp);
-        Assertions.assertTrue(config.isGlobal);
+        Assertions.assertTrue(config.hijack);
 
     }
 }
