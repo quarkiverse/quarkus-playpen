@@ -5,6 +5,7 @@ import java.util.function.Supplier;
 import org.jboss.logging.Logger;
 
 import io.quarkiverse.playpen.client.LocalPlaypenConnectionConfig;
+import io.quarkus.runtime.LaunchMode;
 import io.quarkus.runtime.ShutdownContext;
 import io.quarkus.runtime.annotations.Recorder;
 import io.vertx.core.Vertx;
@@ -18,15 +19,18 @@ public class LocalPlaypenRecorder {
     public static LocalPlaypenConnectionConfig config;
     static Vertx vertx;
 
-    public void init(Supplier<Vertx> vertx, ShutdownContext shutdown, LocalPlaypenConnectionConfig c, boolean delayConnect) {
+    public void init(LaunchMode launchMode, Supplier<Vertx> vertx, ShutdownContext shutdown, LocalPlaypenConnectionConfig c,
+            boolean delayConnect) {
+        closeSession();
         config = c;
         LocalPlaypenRecorder.vertx = vertx.get();
+        // LocalPlaypenHotReplacementSetup.close will be responsible
+        // for closing session in development mode
+        if (launchMode != LaunchMode.DEVELOPMENT) {
+            shutdown.addShutdownTask(LocalPlaypenRecorder::closeSession);
+        }
         if (!delayConnect) {
             startSession(LocalPlaypenRecorder.vertx, c);
-            shutdown.addShutdownTask(() -> {
-                log.info("Closing playpen session");
-                closeSession();
-            });
         }
     }
 
@@ -53,8 +57,10 @@ public class LocalPlaypenRecorder {
     }
 
     public static void closeSession() {
-        if (client != null)
+        if (client != null) {
+            log.info("Closing playpen session");
             client.shutdown();
+        }
         client = null;
     }
 }

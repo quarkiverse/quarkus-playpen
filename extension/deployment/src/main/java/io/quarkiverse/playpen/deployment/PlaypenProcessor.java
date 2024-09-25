@@ -1,7 +1,6 @@
 package io.quarkiverse.playpen.deployment;
 
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -20,8 +19,10 @@ import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.annotations.ExecutionTime;
 import io.quarkus.deployment.annotations.Record;
 import io.quarkus.deployment.builditem.CuratedApplicationShutdownBuildItem;
+import io.quarkus.deployment.builditem.LaunchModeBuildItem;
 import io.quarkus.deployment.builditem.ServiceStartBuildItem;
 import io.quarkus.deployment.builditem.ShutdownContextBuildItem;
+import io.quarkus.runtime.LaunchMode;
 import io.quarkus.vertx.core.deployment.CoreVertxBuildItem;
 import io.quarkus.vertx.http.deployment.RequireVirtualHttpBuildItem;
 
@@ -38,6 +39,30 @@ public class PlaypenProcessor {
     static Map<String, PortForward> portForwards = new HashMap<>();
     static String lastConnect;
     static String lastEndpoint;
+    static PortForward playpenPortForward;
+
+    static void addPortForward(KubernetesClient client, CuratedApplicationShutdownBuildItem shutdown, String endpoint) {
+        if (portForwards.isEmpty()) {
+            shutdown.addCloseTask(() -> {
+                portForwards.values().forEach(ProxyUtils::safeClose);
+                portForwards.clear();
+            }, true);
+        }
+        try {
+            if (portForwards.containsKey(endpoint)) {
+                log.infov("Reusing port forward {0}", portForwards.get(endpoint));
+                return;
+            }
+            PortForward pf = new PortForward(endpoint);
+            pf.forward(client);
+            log.infov("Established port forward {0}", pf.toString());
+            portForwards.put(endpoint, pf);
+        } catch (RuntimeException e) {
+            log.error("Could not establish port forward: " + endpoint);
+            log.error(e.getMessage());
+            throw e;
+        }
+    }
 
     @Record(ExecutionTime.RUNTIME_INIT)
     @BuildStep(onlyIfNot = { IsNormal.class, IsAnyRemoteDev.class })
@@ -45,15 +70,30 @@ public class PlaypenProcessor {
             List<ServiceStartBuildItem> orderServicesFirst, // try to order this after service recorders
             ShutdownContextBuildItem shutdown,
             PlaypenConfig config,
+            LaunchModeBuildItem launchModeBuildItem,
             LocalPlaypenRecorder proxy,
             CuratedApplicationShutdownBuildItem curatedShutdown) {
-        if (config.local().connect().isPresent()) {
-            if (lastConnect != null && lastConnect.equals(config.local().connect().get())) {
-                if (lastEndpoint != null && config.endpoint().isPresent() && lastEndpoint.equals(config.endpoint().get())) {
+        KubernetesClient client = null;
+        if (config.local().portForwards().isPresent()) {
+            if (client == null)
+                client = KubernetesClientUtils.createClient(config.kubernetesClient());
+            for (String pf : config.local().portForwards().get()) {
+                addPortForward(client, curatedShutdown, pf);
+            }
+        }
 
+        if (config.local().connect().isPresent()) {
+            if (launchModeBuildItem.getLaunchMode() == LaunchMode.DEVELOPMENT) {
+                if (lastConnect != null && lastConnect.equals(config.local().connect().get())) {
+                    if ((lastEndpoint == null && !config.endpoint().isPresent())
+                            || (lastEndpoint != null && lastEndpoint.equals(config.endpoint().orElse(null)))) {
+                        // Connection will already be set up
+                        // On a hot reload quarkus may restart the server and
+                        // the playpen client will be in process of forwarding request
+                        return;
+                    }
                 }
             }
-
             LocalPlaypenConnectionConfig playpenConfig = new LocalPlaypenConnectionConfig();
             lastEndpoint = config.endpoint().orElse(null);
             if (config.endpoint().isPresent()) {
@@ -61,7 +101,6 @@ public class PlaypenProcessor {
             }
 
             lastConnect = config.local().connect().get();
-            // don't reload if -Dplaypen.local.connect and no value
             if (!RemotePlaypenProcessor.isPropertyBlank(lastConnect)) {
                 LocalPlaypenConnectionConfig.fromCli(playpenConfig, lastConnect);
             }
@@ -82,55 +121,46 @@ public class PlaypenProcessor {
                     System.exit(1);
                 }
             } else {
-                KubernetesClient client = KubernetesClientUtils.createClient(config.kubernetesClient());
+                if (client == null)
+                    client = KubernetesClientUtils.createClient(config.kubernetesClient());
                 KubernetesLocalPlaypenClientManager manager = new KubernetesLocalPlaypenClientManager(playpenConfig,
                         client);
-                PortForward ppf = portForwards.get(playpenConfig.connection);
-                if (ppf == null) {
+                if (playpenPortForward == null) {
+                    curatedShutdown.addCloseTask(() -> {
+                        if (playpenPortForward != null) {
+                            ProxyUtils.safeClose(playpenPortForward);
+                        }
+                    }, true);
+                }
+                if (playpenPortForward != null) {
+                    if (!playpenConfig.connection.equals(playpenPortForward.getEndpoint())) {
+                        ProxyUtils.safeClose(playpenPortForward);
+                        playpenPortForward = null;
+                    } else {
+                        log.info("Reusing playpen port forward");
+                        playpenConfig.host = "localhost";
+                        playpenConfig.port = playpenPortForward.getLocalPort();
+                    }
+                }
+                if (playpenPortForward == null) {
                     try {
-                        PortForward playpenPortForward = manager.portForward();
-                        log.infov("Established playpen port forward {0}", playpenPortForward.toString());
-                        portForwards.put(playpenConfig.connection, playpenPortForward);
+                        PortForward pf = manager.portForward();
+                        log.infov("Established playpen port forward {0}", pf.toString());
+                        playpenPortForward = pf;
                     } catch (IllegalArgumentException e) {
-                        log.error(e.getMessage());
+                        log.error("Failed to establish playpen: " + e.getMessage());
                         log.error("Maybe playpen does not exist?");
                         System.exit(1);
                     }
-                } else {
-                    log.info("Reusing playpen port forward");
-                    playpenConfig.host = "localhost";
-                    playpenConfig.port = ppf.getLocalPort();
-                }
-                curatedShutdown.addCloseTask(() -> {
-                    portForwards.values().forEach(ProxyUtils::safeClose);
-                    portForwards.clear();
-                }, true);
-                List<String> pfs = new LinkedList<>();
-                if (config.local().portForwards().isPresent()) {
-                    pfs.addAll(config.local().portForwards().get());
                 }
                 if (playpenConfig.portForwards != null) {
-                    pfs.addAll(playpenConfig.portForwards);
-                }
-                pfs.forEach(s -> {
-                    try {
-                        if (portForwards.containsKey(s)) {
-                            log.infov("Reusing port forward {0}", portForwards.get(s));
-                            return;
-                        }
-                        PortForward pf = new PortForward(s);
-                        pf.forward(client);
-                        log.infov("Established port forward {0}", pf.toString());
-                        portForwards.put(s, pf);
-                    } catch (RuntimeException e) {
-                        log.error("Could not establish port forward: " + s);
-                        log.error(e.getMessage());
-                        throw e;
+                    for (String pf : playpenConfig.portForwards) {
+                        addPortForward(client, curatedShutdown, pf);
                     }
-                });
-
+                }
             }
-            proxy.init(vertx.getVertx(), shutdown, playpenConfig, config.local().manualStart());
+            proxy.init(launchModeBuildItem.getLaunchMode(), vertx.getVertx(), shutdown, playpenConfig,
+                    config.local().manualStart());
         }
     }
 

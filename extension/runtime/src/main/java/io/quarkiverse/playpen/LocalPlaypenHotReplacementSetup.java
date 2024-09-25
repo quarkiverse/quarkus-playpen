@@ -14,6 +14,7 @@ public class LocalPlaypenHotReplacementSetup implements HotReplacementSetup {
 
     @Override
     public void close() {
+        LocalPlaypenRecorder.closeSession();
     }
 
 }

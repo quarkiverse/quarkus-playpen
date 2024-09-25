@@ -45,7 +45,7 @@ public class MeetingResource {
             msg += " " + meetingMode;
         }
         String time = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
-        msg = "<h1>" + msg + "</h1><h1>Let's meet LOCALLY at " + time + "</h1>";
+        msg = "<h1>" + msg + "</h1><h1>Let's meet at " + time + "</h1>";
         return msg;
     }
 }
