@@ -38,11 +38,11 @@ public abstract class KubernetesEndpoint {
             } else if (tokens[0].equals("pod")) {
                 type = Type.pod;
                 name = tokens[1];
-            } else { // <name>/<namespace>
+            } else { // <namespace>/<name>
                 namespace = tokens[0];
                 name = tokens[1];
             }
-        } else if (tokens.length == 3) { // pod|service/<name>/<namespace>
+        } else if (tokens.length == 3) { // pod|service/<namespace>/<name>
             type = Type.valueOf(tokens[0]);
             namespace = tokens[1];
             name = tokens[2];
