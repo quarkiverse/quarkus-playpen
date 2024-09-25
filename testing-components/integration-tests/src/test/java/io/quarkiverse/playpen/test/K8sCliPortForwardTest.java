@@ -7,29 +7,19 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.quarkiverse.playpen.kubernetes.crds.PlaypenConfig;
-import io.quarkiverse.playpen.kubernetes.crds.PlaypenConfigSpec;
 import io.quarkiverse.playpen.test.util.PlaypenUtil;
 import io.quarkiverse.playpen.test.util.command.CommandExec;
 import io.quarkiverse.playpen.test.util.command.PlaypenCli;
 
 @EnabledIfSystemProperty(named = "k8s", matches = "true")
-public class KubernetesCliPortForwardTest {
-    static String nodeHost;
-    static KubernetesClient client;
+public class K8sCliPortForwardTest extends BaseK8sTest {
     static String meetingService;
 
     @BeforeAll
-    public static void init() {
-        String defaultHost = "devcluster";
-        if (System.getProperty("openshift") != null) {
-            defaultHost = "apps-crc.testing";
-        }
-        nodeHost = System.getProperty("node.host", defaultHost);
+    public static void setService() {
         meetingService = nodeHost + ":30609";
-        client = new KubernetesClientBuilder().build();
+
     }
 
     @Test
@@ -109,13 +99,5 @@ public class KubernetesCliPortForwardTest {
             client.resource(config).delete();
             Thread.sleep(1000);
         }
-    }
-
-    private static PlaypenConfig createConfig(String configName) {
-        PlaypenConfig config = new PlaypenConfig();
-        config.getMetadata().setName(configName);
-        config.setSpec(new PlaypenConfigSpec());
-        config.getSpec().setLogLevel("DEBUG");
-        return config;
     }
 }

@@ -13,7 +13,7 @@ import io.quarkiverse.playpen.test.util.PlaypenUtil;
 import io.quarkiverse.playpen.test.util.command.PlaypenCli;
 
 @EnabledIfSystemProperty(named = "k8s", matches = "true")
-public class KubernetesCliAuthTest extends BaseCliLocalTest {
+public class K8sCliAuthTest extends BaseCliLocalTest {
     @Test
     public void testSecretAuth() throws Exception {
         System.out.println("---------- Secret Auth Test");

@@ -9,7 +9,7 @@ import io.quarkiverse.playpen.test.util.PlaypenUtil;
 import io.quarkiverse.playpen.test.util.command.PlaypenCli;
 
 @EnabledIfSystemProperty(named = "openshift", matches = "true")
-public class OpenshiftCliAuthTest extends KubernetesCliAuthTest {
+public class OpenshiftCliAuthTest extends K8sCliAuthTest {
     @Test
     public void testOpenshiftOAuth() throws Exception {
         System.out.println("---------- Openshift Auth Test");

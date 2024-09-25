@@ -76,6 +76,7 @@ public class RemotePlaypenProcessor {
                 remoteGet(client);
             } else {
                 log.error("Failed to create remote playpen container!");
+                terminate();
             }
             exit();
         } else if (config.remote().delete().isPresent()) {
@@ -315,10 +316,10 @@ public class RemotePlaypenProcessor {
             String username = System.getProperty("user.name");
             if (username != null && !username.isEmpty()) {
                 log.warn(
-                        "Your login username is being used as a session id.  Use playpen.remote.connect -who to set it to a different value");
+                        "Your login username is being used as a session id.  Use -who to set it to a different value");
                 remoteConfig.who = username;
             } else {
-                log.error("playpen.remote.connect -who must be set");
+                log.error("-who must be set");
                 terminate();
             }
         }

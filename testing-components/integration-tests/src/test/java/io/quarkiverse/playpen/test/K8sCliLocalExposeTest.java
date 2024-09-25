@@ -9,7 +9,7 @@ import io.quarkiverse.playpen.kubernetes.crds.PlaypenConfigSpec;
 import io.quarkiverse.playpen.test.util.PlaypenUtil;
 
 @EnabledIfSystemProperty(named = "k8s", matches = "true")
-public class KubernetesCliLocalExposeTest extends BaseCliLocalTest {
+public class K8sCliLocalExposeTest extends BaseCliLocalTest {
     @Test
     public void testExposeByPortForward() throws Exception {
         System.out.println("---------- PORT FORWARD");

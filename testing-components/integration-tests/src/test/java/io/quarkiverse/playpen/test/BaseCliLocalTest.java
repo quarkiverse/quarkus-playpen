@@ -8,10 +8,6 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.KubernetesClientBuilder;
-import io.quarkiverse.playpen.kubernetes.crds.PlaypenConfig;
-import io.quarkiverse.playpen.kubernetes.crds.PlaypenConfigSpec;
 import io.quarkiverse.playpen.test.util.command.PlaypenCli;
 import io.quarkiverse.playpen.utils.ProxyUtils;
 import io.vertx.core.Vertx;
@@ -20,20 +16,13 @@ import io.vertx.core.impl.VertxBuilder;
 import io.vertx.core.impl.VertxThread;
 import io.vertx.core.spi.VertxThreadFactory;
 
-public abstract class BaseCliLocalTest {
-    public static String nodeHost;
+public abstract class BaseCliLocalTest extends BaseK8sTest {
     public static String greetingService;
-    public static KubernetesClient client;
     public static Vertx vertx;
     public static HttpServer localService;
 
     @BeforeAll
-    public static void init() {
-        String defaultHost = "devcluster";
-        if (System.getProperty("openshift") != null) {
-            defaultHost = "apps-crc.testing";
-        }
-        nodeHost = System.getProperty("node.host", defaultHost);
+    public static void startServices() {
         greetingService = nodeHost + ":30607";
         vertx = new VertxBuilder()
                 .threadFactory(new VertxThreadFactory() {
@@ -49,7 +38,6 @@ public abstract class BaseCliLocalTest {
                     .putHeader("Content-Type", "text/plain")
                     .end("local");
         }).listen(8080);
-        client = new KubernetesClientBuilder().build();
     }
 
     @AfterAll
@@ -59,14 +47,6 @@ public abstract class BaseCliLocalTest {
         if (vertx != null)
             ProxyUtils.await(1000, vertx.close());
 
-    }
-
-    public static PlaypenConfig createConfig(String configName) {
-        PlaypenConfig config = new PlaypenConfig();
-        config.getMetadata().setName(configName);
-        config.setSpec(new PlaypenConfigSpec());
-        config.getSpec().setLogLevel("DEBUG");
-        return config;
     }
 
     public void test(String cmd) throws Exception {

@@ -46,6 +46,7 @@ public class CommandExec {
     private Thread stdoutRunner;
 
     private Thread stderrRunner;
+    private Integer status;
 
     public Process process() {
         return process;
@@ -91,20 +92,40 @@ public class CommandExec {
 
             process = Runtime.getRuntime().exec(cmd, null, new File(workDir));
 
-            stdoutRunner = new StreamReaderThread(process.getInputStream(),
-                    logStreams ? new LoggingOutputStream("STDOUT", stdout) : stdout);
-            stdoutRunner.start();
-
-            stderrRunner = new StreamReaderThread(process.getErrorStream(),
-                    logStreams ? new LoggingOutputStream("STDERR", stderr) : stderr);
-            stderrRunner.start();
-
-            new StreamReaderThread(stdin, process.getOutputStream())
-                    .start();
+            executeRunners();
         } catch (Throwable t) {
             err = t;
         }
         return this;
+    }
+
+    public CommandExec executeAsync(String... cmd) {
+
+        try {
+            System.out.print("Executing: ");
+            for (String s : cmd)
+                System.out.print(s);
+            System.out.println();
+
+            process = Runtime.getRuntime().exec(cmd, null, new File(workDir));
+            executeRunners();
+        } catch (Throwable t) {
+            err = t;
+        }
+        return this;
+    }
+
+    private void executeRunners() {
+        stdoutRunner = new StreamReaderThread(process.getInputStream(),
+                logStreams ? new LoggingOutputStream("STDOUT", stdout) : stdout);
+        stdoutRunner.start();
+
+        stderrRunner = new StreamReaderThread(process.getErrorStream(),
+                logStreams ? new LoggingOutputStream("STDERR", stderr) : stderr);
+        stderrRunner.start();
+
+        new StreamReaderThread(stdin, process.getOutputStream())
+                .start();
     }
 
     public void exit() {
@@ -210,6 +231,8 @@ public class CommandExec {
         long start = System.currentTimeMillis();
         String last = null;
         while (System.currentTimeMillis() - start < waitTimeout) {
+            if (!process.isAlive())
+                return null;
             last = stdoutString();
             for (String search : content) {
                 if (last.indexOf(search) != -1) {
