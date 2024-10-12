@@ -16,7 +16,7 @@ public class GreetingResource {
         String greeting = System.getenv("GREETING_ENV");
         if (greeting == null)
             greeting = "Greetings";
-        String message = "" + greeting + " " + user;
+        String message = "" + greeting + " ZOYO " + user;
         return message;
     }
 }

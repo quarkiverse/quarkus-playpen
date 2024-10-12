@@ -54,3 +54,30 @@ jobs:
 
       - name: Build with Maven
         run: mvn -B clean install -Dno-format
+  cli-binary:
+    name: Quarkus CLI binary on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ macos-latest, windows-latest, ubuntu-latest ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '21'
+          distribution: 'graalvm'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          native-image-job-reports: 'true'
+
+      - name: Build and run HelloWorld.java
+        run: mvn clean install -DskipTests=true -Dnative -pl :playpen-core,:kubernetes-playpen-core,:playpen-cli
+
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: playpen-${{ matrix.os }}
+          path: cli/target/playpen-cli-*-runner
+
+

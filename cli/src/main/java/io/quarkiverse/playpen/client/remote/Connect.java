@@ -7,7 +7,6 @@ import java.util.concurrent.Callable;
 import jakarta.inject.Inject;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.quarkiverse.playpen.client.OnShutdown;
 import io.quarkiverse.playpen.client.RemotePlaypenClient;
 import io.quarkiverse.playpen.client.RemotePlaypenConnectionConfig;
@@ -31,6 +30,9 @@ public class Connect extends BaseCommand implements Callable<Integer> {
     @Inject
     protected OnShutdown shutdown;
 
+    @Inject
+    KubernetesClient kube;
+
     @Override
     public Integer call() throws Exception {
         RemotePlaypenConnectionConfig config = new RemotePlaypenConnectionConfig();
@@ -43,7 +45,6 @@ public class Connect extends BaseCommand implements Callable<Integer> {
         if (config.connection.startsWith("http")) {
             client = new RemotePlaypenClient(config);
         } else {
-            KubernetesClient kube = new KubernetesClientBuilder().build();
             KubernetesRemotePlaypenClient kc = new KubernetesRemotePlaypenClient(kube, config);
             client = kc;
             try {

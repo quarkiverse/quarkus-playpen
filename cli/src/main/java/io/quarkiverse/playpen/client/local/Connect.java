@@ -8,7 +8,6 @@ import java.util.concurrent.Callable;
 import jakarta.inject.Inject;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.quarkiverse.playpen.client.DefaultLocalPlaypenClientManager;
 import io.quarkiverse.playpen.client.LocalPlaypenClient;
 import io.quarkiverse.playpen.client.LocalPlaypenConnectionConfig;
@@ -45,6 +44,9 @@ public class Connect extends BaseCommand implements Callable<Integer> {
     @Inject
     Vertx vertx;
 
+    @Inject
+    KubernetesClient client;
+
     @Override
     public Integer call() throws Exception {
 
@@ -65,7 +67,6 @@ public class Connect extends BaseCommand implements Callable<Integer> {
                 System.exit(1);
             }
         } else {
-            KubernetesClient client = new KubernetesClientBuilder().build();
             KubernetesLocalPlaypenClientManager manager = new KubernetesLocalPlaypenClientManager(config, client);
             try {
                 PortForward portForward = manager.portForward();
