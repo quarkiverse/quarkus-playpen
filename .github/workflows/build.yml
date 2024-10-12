@@ -59,7 +59,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ macos-latest, ubuntu-latest ]
+        os: [ macos-latest, windows-latest, ubuntu-latest ]
     steps:
       - uses: actions/checkout@v4
 
@@ -80,30 +80,4 @@ jobs:
         with:
           name: playpen-${{ matrix.os }}
           path:
-            cli/target/playpen-cli-*-runner
-  cli-binary-windows:
-    name: Windows Quarkus CLI binary on ${{ matrix.os }}
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: graalvm/setup-graalvm@v1
-        with:
-          java-version: '21'
-          distribution: 'graalvm'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          native-image-job-reports: 'true'
-
-      - name: Build CLI Binaries
-        run: |
-          mvn clean install -DskipTests=true -Dnative -pl :playpen-core,:kubernetes-playpen-core,:playpen-cli
-
-
-      - name: Upload binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: playpen-${{ matrix.os }}
-          path:
-            cli/target/playpen-cli-*-runner.exe
-
-
+            cli/target/playpen-cli-*-runner*
