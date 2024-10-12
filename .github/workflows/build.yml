@@ -70,14 +70,17 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           native-image-job-reports: 'true'
 
-      - name: Build and run HelloWorld.java
-        run: mvn clean install -DskipTests=true -Dnative -pl :playpen-core,:kubernetes-playpen-core,:playpen-cli
+      - name: Build CLI Binaries
+        run: |
+          mvn clean install -DskipTests=true -Dnative -pl :playpen-core,:kubernetes-playpen-core,:playpen-cli
 
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
           name: playpen-${{ matrix.os }}
-          path: cli/target/playpen-cli-*-runner
+          path:
+            cli/target/playpen-cli-*-runner
+            cli/target/playpen-cli-*-runner.exe
 
 
