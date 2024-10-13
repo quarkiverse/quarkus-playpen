@@ -19,6 +19,8 @@ jobs:
         os: [ ubuntu-latest ]
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-tags: true
 
       - name: read-yaml-file
         uses: pietrobolcato/action-read-yaml@1.1.0
