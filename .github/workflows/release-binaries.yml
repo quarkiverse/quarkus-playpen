@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: read-yaml-file
-        uses: pietrobolcato/action-read-yaml@1.0.0
+        uses: pietrobolcato/action-read-yaml@1.1.0
         id: project
         with:
           config: ${{ github.workspace }}/.github/project.yml
