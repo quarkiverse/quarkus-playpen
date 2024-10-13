@@ -42,9 +42,9 @@ developer's laptop.  Visibility requirements differ between local and remote *pl
 Make sure quay.io is reachable as an image repository.
 
 ```shell
-kubectl apply -f https://raw.githubusercontent.com/quarkiverse/quarkus-playpen/0.5/operator/playpenconfigs-crd.yml
-kubectl apply -f https://raw.githubusercontent.com/quarkiverse/quarkus-playpen/0.5/operator/playpens-crd.yml
-kubectl apply -f https://raw.githubusercontent.com/quarkiverse/quarkus-playpen/0.5/operator/operator.yml
+kubectl apply -f https://raw.githubusercontent.com/quarkiverse/quarkus-playpen/999-SNAPSHOT/operator/playpenconfigs-crd.yml
+kubectl apply -f https://raw.githubusercontent.com/quarkiverse/quarkus-playpen/999-SNAPSHOT/operator/playpens-crd.yml
+kubectl apply -f https://raw.githubusercontent.com/quarkiverse/quarkus-playpen/999-SNAPSHOT/operator/operator.yml
 ```
 
 This will install some CRDs and start the *Playpen Operator* under the `quarkus`
@@ -57,7 +57,7 @@ For quarkus projects, add this dependency to your project
         <dependency>
             <groupId>io.quarkiverse.playpen</groupId>
             <artifactId>quarkus-playpen</artifactId>
-            <version>0.5</version>
+            <version>999-SNAPSHOT</version>
         </dependency>
 ```
 
