@@ -8,6 +8,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 import io.quarkiverse.playpen.server.PlaypenProxy;
 import io.quarkiverse.playpen.server.PlaypenProxyConfig;
@@ -19,7 +20,6 @@ import io.vertx.core.http.HttpServer;
 import io.vertx.core.impl.VertxBuilder;
 import io.vertx.core.impl.VertxThread;
 import io.vertx.core.spi.VertxThreadFactory;
-import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 @EnabledIfSystemProperty(named = "cli", matches = "true")
 public class CliSessionTest {
