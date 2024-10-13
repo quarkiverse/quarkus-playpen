@@ -42,9 +42,9 @@ message.
 Make sure quay.io is reachable as an image repository.
 
 ```shell
-kubectl apply -f https://raw.githubusercontent.com/quarkiverse/quarkus-playpen/main/operator/playpenconfigs-crd.yml
-kubectl apply -f https://raw.githubusercontent.com/quarkiverse/quarkus-playpen/main/operator/playpens-crd.yml
-kubectl apply -f https://raw.githubusercontent.com/quarkiverse/quarkus-playpen/main/operator/operator.yml
+kubectl apply -f https://raw.githubusercontent.com/quarkiverse/quarkus-playpen/0.6/operator/playpenconfigs-crd.yml
+kubectl apply -f https://raw.githubusercontent.com/quarkiverse/quarkus-playpen/0.6/operator/playpens-crd.yml
+kubectl apply -f https://raw.githubusercontent.com/quarkiverse/quarkus-playpen/0.6/operator/operator.yml
 ```
 
 ## Setup Playpen default configuration
