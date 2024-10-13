@@ -16,7 +16,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest ]
+        os: [ macos-latest, ubuntu-latest ]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -40,10 +40,47 @@ jobs:
         run: |
           git checkout ${{ steps.project.outputs['release.current-version'] }}
           mvn clean install -DskipTests=true -Dnative -pl :playpen-core,:kubernetes-playpen-core,:playpen-cli
-
+          mv cli/target/playpen-cli-*-runner playpen.${{ matrix.os }}
 
       - name: Release binary ${{ steps.project.outputs['release.current-version'] }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.project.outputs['release.current-version'] }}
-          files: cli/target/playpen-cli-*-runner
+          files: playpen.${{ matrix.os }}
+  windows-cli-binary:
+    name: Quarkus CLI binary on Windows
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ windows-latest ]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: read-yaml-file
+        uses: pietrobolcato/action-read-yaml@1.1.0
+        id: project
+        with:
+          config: ${{ github.workspace }}/.github/project.yml
+
+      - uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '21'
+          distribution: 'graalvm'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          native-image-job-reports: 'true'
+
+      - name: Build CLI Binaries ${{ steps.project.outputs['release.current-version'] }}
+        run: |
+          git checkout ${{ steps.project.outputs['release.current-version'] }}
+          mvn clean install -DskipTests=true -Dnative -pl :playpen-core,:kubernetes-playpen-core,:playpen-cli
+          mv cli/target/playpen-cli-*-runner.exe playpen.${{ matrix.os }}
+
+      - name: Release binary ${{ steps.project.outputs['release.current-version'] }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.project.outputs['release.current-version'] }}
+          files: playpen.${{ matrix.os }}.exe
+
