@@ -33,14 +33,14 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           native-image-job-reports: 'true'
 
-      - name: Build CLI Binaries ${{ steps.project.release["current-version"] }}
+      - name: Build CLI Binaries ${{ steps.project.release['current-version'] }}
         run: |
-          git checkout ${{ steps.project.release["current-version"] }}
+          git checkout ${{ steps.project.release['current-version'] }}
           mvn clean install -DskipTests=true -Dnative -pl :playpen-core,:kubernetes-playpen-core,:playpen-cli
 
 
-      - name: Release binary ${{ steps.project.release["current-version"] }}
+      - name: Release binary ${{ steps.project.release['current-version'] }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.project.release["current-version"] }}
+          tag_name: ${{ steps.project.release['current-version'] }}
           files: cli/target/playpen-cli-*-runner
