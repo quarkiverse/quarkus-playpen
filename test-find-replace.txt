@@ -1,1 +1,1 @@
-999-SNAPSHOT
+raw.githubusercontent.com/quarkiverse/quarkus-playpen/999-SNAPSHOT

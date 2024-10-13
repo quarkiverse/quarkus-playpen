@@ -51,10 +51,6 @@ jobs:
           distribution: temurin
           java-version: 17
           cache: 'maven'
-      - name: Find replace
-        run: |
-          find -name 'test-find-replace.txt' -exec sed -i 's/999-SNAPSHOT/0.2/g' {} +
-          cat test-find-replace.txt
 
       - name: Build with Maven
         run: mvn -B clean install -Dno-format

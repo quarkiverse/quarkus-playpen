@@ -49,8 +49,14 @@ jobs:
 
       - name: Maven release ${{steps.metadata.outputs.current-version}}
         run: |
+          find -name '*.md' -exec sed -i 's/${{steps.metadata.outputs.next-version}}/${{steps.metadata.outputs.current-version}}/g' {} +
+          find -name '*.md' -exec sed -i 's|raw.githubusercontent.com/quarkiverse/quarkus-playpen/main|raw.githubusercontent.com/quarkiverse/quarkus-playpen/${{steps.metadata.outputs.current-version}}|g' {} +
+          git commit -a -m "Bump doc to current version"
           mvn -B release:prepare -Prelease -DreleaseVersion=${{steps.metadata.outputs.current-version}} -DdevelopmentVersion=${{steps.metadata.outputs.next-version}}
           mvn -B release:perform -Darguments=-DperformRelease -DperformRelease -Prelease
+          find -name '*.md' -exec sed -i 's/${{steps.metadata.outputs.current-version}}/${{steps.metadata.outputs.next-version}}/g' {} +
+          find -name '*.md' -exec sed -i 's|raw.githubusercontent.com/quarkiverse/quarkus-playpen/${{steps.metadata.outputs.current-version}}|raw.githubusercontent.com/quarkiverse/quarkus-playpen/${{steps.metadata.outputs.next-version}}|g' {} +
+          git commit -a -m "Bump doc to next-version"
         env:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}

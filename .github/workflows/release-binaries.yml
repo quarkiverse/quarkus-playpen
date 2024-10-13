@@ -1,0 +1,90 @@
+name: Build CLI Binaries
+
+on:
+  workflow_run:
+    workflows: ["Quarkiverse Release"]
+    types:
+      - completed
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  cli-binary:
+    name: Quarkus CLI binary on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    if:
+      ${{ github.event.workflow_run.conclusion == 'success' }}
+    strategy:
+      matrix:
+        os: [ macos-latest, ubuntu-latest ]
+    steps:
+      - uses: radcortez/project-metadata-action@main
+        name: Retrieve project metadata
+        id: metadata
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          metadata-file-path: '.github/project.yml'
+
+      - uses: actions/checkout@v4
+
+      - uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '21'
+          distribution: 'graalvm'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          native-image-job-reports: 'true'
+
+      - name: Build CLI Binaries
+        run: |
+          git checkout ${{steps.metadata.outputs.current-version}}
+          mvn clean install -DskipTests=true -Dnative -pl :playpen-core,:kubernetes-playpen-core,:playpen-cli
+
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: playpen-${{ matrix.os }}
+          path:
+            cli/target/playpen-cli-*-runner
+  windows-cli-binary:
+    name: Quarkus CLI binary on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    if:
+      ${{ github.event.workflow_run.conclusion == 'success' }}
+    strategy:
+      matrix:
+        os: [ windows-latest ]
+    steps:
+      - uses: radcortez/project-metadata-action@main
+        name: Retrieve project metadata
+        id: metadata
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          metadata-file-path: '.github/project.yml'
+      - uses: actions/checkout@v4
+
+      - uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '21'
+          distribution: 'graalvm'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          native-image-job-reports: 'true'
+
+      - name: Build CLI Binaries
+        run: |
+          git checkout ${{steps.metadata.outputs.current-version}}
+          mvn clean install -DskipTests=true -Dnative -pl :playpen-core,:kubernetes-playpen-core,:playpen-cli
+
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: playpen-${{ matrix.os }}
+          path:
+            cli/target/playpen-cli-*-runner.exe
