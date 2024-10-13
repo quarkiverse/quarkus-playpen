@@ -1,10 +1,9 @@
 name: Build CLI Binaries
 
 on:
-  workflow_run:
-    workflows: ["Quarkiverse Release"]
-    types:
-      - completed
+  push:
+    tags:
+      - "*"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -60,15 +59,7 @@ jobs:
       matrix:
         os: [ windows-latest ]
     steps:
-      - uses: radcortez/project-metadata-action@main
-        name: Retrieve project metadata
-        id: metadata
-        with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          metadata-file-path: '.github/project.yml'
       - uses: actions/checkout@v4
-        with:
-          ref: ${{steps.metadata.outputs.current-version}}
 
       - uses: graalvm/setup-graalvm@v1
         with:
