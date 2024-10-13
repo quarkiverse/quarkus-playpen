@@ -16,18 +16,15 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ macos-latest, ubuntu-latest ]
+        os: [ ubuntu-latest ]
     steps:
-      - uses: radcortez/project-metadata-action@main
-        name: Retrieve project metadata
-        id: metadata
-        with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          metadata-file-path: '.github/project.yml'
-
       - uses: actions/checkout@v4
+
+      - name: read-yaml-file
+        uses: pietrobolcato/action-read-yaml@1.0.0
+        id: project
         with:
-          ref: ${{steps.metadata.outputs.current-version}}
+          config: ${{ github.workspace }}/.github/project.yml
 
       - uses: graalvm/setup-graalvm@v1
         with:
@@ -36,37 +33,14 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           native-image-job-reports: 'true'
 
-      - name: Build CLI Binaries
+      - name: Build CLI Binaries ${{ steps.project.release["current-version"] }}
         run: |
+          git checkout ${{ steps.project.release["current-version"] }}
           mvn clean install -DskipTests=true -Dnative -pl :playpen-core,:kubernetes-playpen-core,:playpen-cli
 
 
-      - name: Release binary
+      - name: Release binary ${{ steps.project.release["current-version"] }}
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.project.release["current-version"] }}
           files: cli/target/playpen-cli-*-runner
-  windows-cli-binary:
-    name: Quarkus CLI binary on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ windows-latest ]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: graalvm/setup-graalvm@v1
-        with:
-          java-version: '21'
-          distribution: 'graalvm'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          native-image-job-reports: 'true'
-
-      - name: Build CLI Binaries
-        run: |
-          mvn clean install -DskipTests=true -Dnative -pl :playpen-core,:kubernetes-playpen-core,:playpen-cli
-
-
-      - name: Release binary
-        uses: softprops/action-gh-release@v2
-        with:
-          files: cli/target/playpen-cli-*-runner.exe
