@@ -17,8 +17,6 @@ jobs:
   cli-binary:
     name: Quarkus CLI binary on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    if:
-      ${{ github.event.workflow_run.conclusion == 'success' }}
     strategy:
       matrix:
         os: [ macos-latest, ubuntu-latest ]
@@ -53,8 +51,6 @@ jobs:
   windows-cli-binary:
     name: Quarkus CLI binary on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    if:
-      ${{ github.event.workflow_run.conclusion == 'success' }}
     strategy:
       matrix:
         os: [ windows-latest ]
