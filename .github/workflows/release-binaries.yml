@@ -76,7 +76,7 @@ jobs:
         run: |
           git checkout ${{ steps.project.outputs['release.current-version'] }}
           mvn clean install -DskipTests=true -Dnative -pl :playpen-core,:kubernetes-playpen-core,:playpen-cli
-          mv cli/target/playpen-cli-*-runner.exe playpen.${{ matrix.os }}
+          mv cli/target/playpen-cli-*-runner.exe playpen.${{ matrix.os }}.exe
 
       - name: Release binary ${{ steps.project.outputs['release.current-version'] }}
         uses: softprops/action-gh-release@v2
