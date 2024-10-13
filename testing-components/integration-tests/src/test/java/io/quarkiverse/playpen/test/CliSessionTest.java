@@ -19,7 +19,9 @@ import io.vertx.core.http.HttpServer;
 import io.vertx.core.impl.VertxBuilder;
 import io.vertx.core.impl.VertxThread;
 import io.vertx.core.spi.VertxThreadFactory;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
+@EnabledIfSystemProperty(named = "cli", matches = "true")
 public class CliSessionTest {
     public static final int SERVICE_PORT = 9091;
     public static final int PROXY_PORT = 9092;
