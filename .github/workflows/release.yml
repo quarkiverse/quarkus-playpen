@@ -93,7 +93,7 @@ jobs:
           mvn clean install -DskipTests=true -Dnative -pl :playpen-core,:kubernetes-playpen-core,:playpen-cli
           mv cli/target/playpen-cli-*-runner playpen.${{ matrix.os }}${{ matrix.os == 'windows-latest' && '.exe' || '' }}
 
-      - name: Release binary ${{ nneeds.release.outputs.tag }}
+      - name: Release binary ${{ needs.release.outputs.tag }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.release.outputs.tag }}
