@@ -1,0 +1,61 @@
+name: Quarkiverse Perform Release
+run-name: Perform ${{github.event.inputs.tag || github.ref_name}} Release
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release'
+        required: true
+
+permissions:
+  attestations: write
+  id-token: write
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  perform-release:
+    name: Perform Release
+    uses: quarkiverse/.github/.github/workflows/perform-release.yml@main
+    secrets: inherit
+    with:
+      version: ${{github.event.inputs.tag || github.ref_name}}
+
+  cli-binary:
+    name: Quarkus CLI binary on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ macos-latest, ubuntu-latest, windows-latest ]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{github.event.inputs.tag || github.ref_name}}
+          fetch-depth: 0
+
+      - uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '21'
+          distribution: 'graalvm'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          native-image-job-reports: 'true'
+
+      - name: Build CLI Binaries ${{github.event.inputs.tag || github.ref_name}}
+        run: |
+          mvn clean install -DskipTests=true -Dnative -pl :playpen-core,:kubernetes-playpen-core,:playpen-cli
+          mv cli/target/playpen-cli-*-runner${{ matrix.os == 'windows-latest' && '.exe' || '' }} ${FILE}
+        env:
+          FILE: playpen.${{ matrix.os }}${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+
+      - name: Upload binary ${{github.event.inputs.tag || github.ref_name}}
+        run: gh release upload ${TAG} ${FILE}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{github.event.inputs.tag || github.ref_name}}
+          FILE: playpen.${{ matrix.os }}${{ matrix.os == 'windows-latest' && '.exe' || '' }}
