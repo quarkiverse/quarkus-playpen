@@ -19,7 +19,6 @@
         <module>cli</module>
         <module>extension/runtime</module>
         <module>extension/deployment</module>
-        <module>testing-components</module>
     </modules>
     <scm>
         <connection>scm:git:git@github.com:quarkiverse/quarkus-playpen.git</connection>
@@ -87,4 +86,18 @@
             </plugins>
         </pluginManagement>
     </build>
+    <profiles>
+        <profile>
+            <id>it</id>
+            <activation>
+                <property>
+                    <name>performRelease</name>
+                    <value>!true</value>
+                </property>
+            </activation>
+            <modules>
+                <module>testing-components</module>
+            </modules>
+        </profile>
+    </profiles>
 </project>
