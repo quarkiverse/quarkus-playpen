@@ -42,9 +42,9 @@ developer's laptop.  Visibility requirements differ between local and remote *pl
 Make sure quay.io is reachable as an image repository.
 
 ```shell
-kubectl apply -f https://raw.githubusercontent.com/quarkiverse/quarkus-playpen/0.9.4/operator/playpenconfigs-crd.yml
-kubectl apply -f https://raw.githubusercontent.com/quarkiverse/quarkus-playpen/0.9.4/operator/playpens-crd.yml
-kubectl apply -f https://raw.githubusercontent.com/quarkiverse/quarkus-playpen/0.9.4/operator/operator.yml
+kubectl apply -f https://raw.githubusercontent.com/quarkiverse/quarkus-playpen/main/operator/playpenconfigs-crd.yml
+kubectl apply -f https://raw.githubusercontent.com/quarkiverse/quarkus-playpen/main/operator/playpens-crd.yml
+kubectl apply -f https://raw.githubusercontent.com/quarkiverse/quarkus-playpen/main/operator/operator.yml
 ```
 
 This will install some CRDs and start the *Playpen Operator* under the `quarkus`
@@ -57,7 +57,7 @@ For quarkus projects, add this dependency to your project
         <dependency>
             <groupId>io.quarkiverse.playpen</groupId>
             <artifactId>quarkus-playpen</artifactId>
-            <version>0.9.4</version>
+            <version>999-SNAPSHOT</version>
         </dependency>
 ```
 
@@ -352,7 +352,7 @@ deployed in the `default` namespace.
 Example URL connection string if there's a nodeport used.  All requests
 will be sent to the developer's laptop
 
-`http://192.168.49.2:320.9.4/local/john?hijack=true`
+`http://192.168.49.2:32999-SNAPSHOT/local/john?hijack=true`
 
 Example URL connection string if there's an ingress with
 `host` of `devcluster` used.  Requests that contain the `X-Playpen-Session`
@@ -386,7 +386,7 @@ will be disconnected and removed.
 ### Start the connection with the Playpen CLI
 
 ```shell
-playpen local connect --credentials=mysecret --local-port=8080 http://192.168.49.2:320.9.4/local/john?hijack=true
+playpen local connect --credentials=mysecret --local-port=8080 http://192.168.49.2:32999-SNAPSHOT/local/john?hijack=true
 ```
 `credentials` does not have to be specified if there is no authentication policy
 set up for the playpen
