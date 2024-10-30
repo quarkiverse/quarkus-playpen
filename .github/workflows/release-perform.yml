@@ -49,7 +49,7 @@ jobs:
       - name: Build CLI Binaries ${{github.event.inputs.tag || github.ref_name}}
         run: |
           mvn clean install -DskipTests=true -Dnative -pl :playpen-core,:kubernetes-playpen-core,:playpen-cli
-          mv cli/target/playpen-cli-*-runner${{ matrix.os == 'windows-latest' && '.exe' || '' }} playpen-cli-*-runner${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+          mv cli/target/playpen-cli-*-runner${{ matrix.os == 'windows-latest' && '.exe' || '' }} playpen.${{ matrix.os }}${{ matrix.os == 'windows-latest' && '.exe' || '' }}
 
       - name: Upload binary ${{github.event.inputs.tag || github.ref_name}}
         run: gh release upload ${TAG} ${FILE}
