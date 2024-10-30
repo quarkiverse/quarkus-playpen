@@ -57,3 +57,4 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{github.event.inputs.tag || github.ref_name}}
           FILE: playpen.${{ matrix.os }}${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+        shell: bash
