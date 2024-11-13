@@ -28,11 +28,12 @@ both operationally and on the developer's laptop.
 
 ### Cloud Requirements
 * Kubernetes or Openshift
+* Installation of the Playpen Operator
 * Willingness to give CRUD permissions to the *Playpen Operator* for services, deployments,
 pods, secrets, service accounts, ingresses, and openshift routes.
-* Willingness to open up the Development Cloud network so that parts of it are visible to a
-developer's laptop.  Visibility requirements differ between local and remote *playpens*
 ### Developer laptop requirements
+* Works best if developer's laptop has [kubectl port forwarding](https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster/) permissions
+* Works best if developer has logged in via *kubectl* or *oc*
 * For Quarkus projects, only the `quarkus-playpen` extension is required
 * For other languages and Java Frameworks, the [Playpen CLI](#playpen-cli) is required
 
@@ -68,9 +69,11 @@ For non-Quarkus projects you must download the [Playpen CLI](#playpen-cli)
 Playpen is enabled on a per-service basis.  To create a playpen for
 a specific Kubernetes service you must create a YAML file
 
-**NOTE** It is highly recommended you set up the default
-configuration policies for created playpens using a
-[PlaypenConfig](#playpen-configs)
+**NOTE** By default, connecting to a playpen will require no
+authentication and the developer must have port forwarding permission.
+To set up an authentication policy or modify other configuration
+options, there is another CRD you can apply that sets up default
+configuration policies.  See [PlaypenConfig](#playpen-configs).
 
 ```yaml
 apiVersion: "io.quarkiverse.playpen/v1"
@@ -81,6 +84,8 @@ metadata:
 
 The *service-name* within the YAML file must be equivalent to a service
 deployed in the same namespace as the *playpen* you are creating.
+
+Whoever creates the playpen must have permissions to create the Playpen CRD.
 
 ```shell
 kubectl apply -f playpen.yml
@@ -112,12 +117,15 @@ The 2nd port is for developer playpen connections.
 This 2nd port is exposed through the default [expose policy](#expose-policy).
 Developer connections to the playpen are secured the default [authentication policy](#authentication-policy)
 
+Deleting the playpen CRD will put delete all created resources and restore
+the service to it's original state.
+
 ### Playpen YAML
 
 The Playpen Spec allows the following values
 * **config** Name of a [PlaypenConfig](#playpen-configs) to use
-for configuration
-* **configNamespace** Namespace that the config lives in
+for configuration.  Defaults to `global`
+* **configNamespace** Namespace that the config lives in.  Defaults to `quarkus`
 * **nodePort** If the [expose policy](#expose-policy) is Nodeport, this is a 
 a specific port value to assign to the node port.
 * **logLevel** Set to "DEBUG" if you are having issues with Playpen.  This will
@@ -167,13 +175,194 @@ contain a list of things that were created and that will be deleted if the `Play
 deleted.  The `oldSelectors` variable shows the old selector value of the original `Service`
 When the `Playpen` is deleted, the selector will be set back to the old value.
 
+## Local vs. Remote Playpens
+
+*Local* playpens allow you to route requests meant for the
+original service, down to your laptop.  This allows you to develop
+your service locally.
+
+*Remote* playpens differ from [local playpens](#local-playpens) in that
+instead of routing requests to your laptop, requests can be routed to a
+different pod that is running within your development cluster.
+
+*Local* playpens offer an ideal development experience, but depending on
+how locked down your development cluster is, you might not be able to run
+them and a *Remote* playpen might be a better option.
+
+
+## Local Playpens
+
+Local playpens allow you to route requests meant for the
+original service, down to your laptop.  This allows you to develop
+your service locally.
+
+## Local Playpen Requirements
+* If the developer must have [kubectl port forwarding](https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster/) permissions
+  or the 2nd port that is used for developer playpen connections
+  must be set up using an [expose policy](#expose-policy)
+* The developer must set up port forwards for any dependent databases
+  or services...or the development cluster must expose those databases 
+  and services.  If this is not possible
+  try using a [remote playpen](#remote-playpens) instead.
+* The developer must know the credentials needed to connect
+  to the playpen defined by the [authentication policy](#authentication-policy)
+* Works best if the developer is already logged in via `kubectl` or `oc`. Otherwise
+  kubernetes/openshift credentials may have to be provided (i.e. a token).
+* For Quarkus projects, only the `quarkus-playpen` extension is required
+* For other languages and Java Frameworks, the [Playpen CLI](#playpen-cli) is required
+
+
+## Connecting to a local playpen
+*NOTE* Make sure you have done the [installation requirements](#developer-laptop-installation). 
+
+To setup a local playpen with Quarkus projects, you must run in Quarkus Dev Mode.
+
+```shell
+mvn quarkus:dev -Dplaypen.local.connect="greeting -hijack"
+```
+
+With any other language or Java Framework, you must use the [Playpen CLI](#playpen-cli).
+You must also manually start your service locally.
+
+```shell
+$ playpen local connect greeting -hijack
+```
+
+The CLI parameters and switches are almost exact between Quarkus and the
+Playpen CLI.
+
+### Connection Parameter
+
+The *connection parameter* is required and specifies the service name
+or connection URL for the playpen.  
+
+If your developer has kubectl permissions
+to view services and do port forwarding, then you can specify the name of the 
+Kubernetes Service, `[namespace/]service`.  If you have set up a default
+namespace for your shell, then you do not need to specify the namespace.
+
+```shell
+mvn quarkus:dev -Dplaypen.local.connect="myproject/greeting -hijack"
+$ playpen local connect myproject/greeting -hijack
+```
+
+When you specify the connection parameter as a service name, a port forward
+on your laptop will be set up that routes to the 2nd port of the playpen proxy
+deployed in your cluster.  Quarkus or the Playpen CLI will do this automatically,
+but it will need the appropriate Kubernetes/Openshift credentials.  These credentials
+are already automatically set up if the developer uses the cli `kubectl` or `oc`.  Otherwise
+please see the CLI switches for [kubernetes setup](#kube-cli).
+
+If your developer laptop does not have the approriate kubernetes credentials
+or permissions, then the playpen proxy must be setup with an appropriate
+[expose policy](#expose-policy) and you must specify an HTTP URL `connection parameter`
+
+```shell
+mvn quarkus:dev -Dplaypen.local.connect="https://greeting.devcluster -hijack"
+$ playpen local connect https://devcluster/greeting -hijack
+```
+
+
+
+
+
+
+
+
+
+### Connection URL
+
+The connection URL is needed by Quarkus or the [playpen cli](#playpen-cli)
+to connect to the playpen proxy and start a playpen for development.
+The scheme, host, port, and base path prefix are defined by the
+[expose policy](#expose-policy).
+
+`http[s]://<expose-policy-host-port/<possible-prefix-if-ingress>/local/<who-ami-i>`
+
+Notice where `local` is on the path.  This is important as it tells
+the proxy that you are creating a local playpen connection.
+
+The `who-ami-i` part of the path is also required.  This should
+be the first name or something that identifies the human developer making
+the connection.  Basically `who-ami-i` is the name of the playpen
+session.
+
+The connection URL also can define connection parameters.
+
+`http[s]://foo/local/john?hijack=true`
+
+#### Local Config parameters
+
+* **hijack** - **true|false**.  If `true`, all requests to the
+  service will be sent to the developer's laptop.
+* **path** - **path-prefix**.  If set, and `hijack=false` the playpen
+  proxy will route requests to the developer's laptop if the
+  HTTP request has the path prefix specified
+* **query** - **\<name>=\<value>**  If set and `hijack=false` the playpen
+  proxy will route requests to the developer's laptop if the
+  HTTP request has a query parameter with name and value.
+* **header** - **\<name>=\<value>**  If set and `hijack=false` the playpen
+  proxy will route requests to the developer's laptop if the
+  HTTP request has a header with a specific value
+* **clientIp** - **client-ip-address** If set and `hijack=false` the playpen
+  proxy will route requests to the developer's laptop if the client ip address
+  matches.
+
+Multiple session matches can be defined within the connection string
+
+If `hijack=false`, by default, if the `X-Playpen-Session` header or cookie
+is set within the request with a value of `who-ami-i`, then the request will
+be routed to the developer's laptop.
+
+### Examples
+These examples are connecting to a playpen for a service named `greeting`
+deployed in the `default` namespace.
+
+Example URL connection string if there's a nodeport used.  All requests
+will be sent to the developer's laptop
+
+`http://192.168.49.2:32999-SNAPSHOT/local/john?hijack=true`
+
+Example URL connection string if there's an ingress with
+`host` of `devcluster` used.  Requests that contain the `X-Playpen-Session`
+with a value of `john` will be routed to the developer's laptop
+
+`http://devcluster/greeting-playpen-default/local/john`
+
+Example URL connection string if there's an ingress with
+`domain` of `devcluster` used.  Requests that contain a query parameter
+`user` with a value of `joe` will be routed to the developer's laptop.
+Also requests that contain a path prefix of `users` will be rerouted.
+
+`http://greeting-playpen-default.devcluster/local/john?query=user=joe&path=/users`
+
+### Start the connection for Quarkus
+
+Make sure you have the [quarkus playpen extension](#enabling-a-playpen-for-a-service) set up.
+
+```shell
+mvn quarkus:dev -Dquarkus.playpen.local="http://devcluster/greeting-playpen-default/local/john" \
+    -Dquarkus.playpen.credentials="mysecret"
+```
+
+The `quarkus.playpen.credentials` does not have to be set if there is no
+authentication policy for the playpen.
+
+This will build the app, make a connection to the playpen proxy, and start
+quarkus in dev mode.  When ending the dev mode session, the playpen connection
+will be disconnected and removed.
+
 
 ## Playpen Configs
 Playpen Configs are Kubernetes records that define the default
-configuration for created Playpens.
+configuration for created Playpens.  If you are using *PlaypenConfigs*
+you MUST create them before creating a *Playpen*.  Creating or modifying
+a *PlaypenConfig* does not change playpens that use those configurations.
+Those playpens must be deleted and re-created to obtain the configuration
+changes.
 
-**NOTE** It is highly recommended that you create a PlaypenConfig
-within the `quarkus` namespace calls `hijack`.
+When a Playpen CRD is applied, by default it will look for a *PlaypenConfig*
+within the `quarkus` namespace called `global`.  
 
 ```yaml
 apiVersion: "io.quarkiverse.playpen/v1"
@@ -216,7 +405,7 @@ Developer connections must use this credential when connecting to the playpen.
 * **openshiftBasicAuth** When on Openshift, you can use a cluster user and 
 password to authenticate developer playpen connections.
 
-The default authentication policy is `secret`.
+The default authentication policy is `none`.
 
 To get the value of a secret created for a service (let's say the service is `greeting`)
 ```shell
@@ -224,12 +413,13 @@ kubectl get secret greeting-playpen-auth -o jsonpath='{.data.password}' | base64
 ```
 
 ### Expose Policy
-The `spec.exposePolicy` defines how the 2nd port on the
+If the developer does not have kubectl port forwarding permission,
+they can still connect to a playpen if the playpen's port
+is exposed.  The `spec.exposePolicy` defines how the 2nd port on the
 Playpen Proxy is exposed so that developers can make
 connections to it.
 
-* **manual** The admin is responsible for exposing the 2nd port on the
-Playpen Proxy.  
+* **none** The playpen connection port will not be exposed .  
 * **nodePort** A random node port will be used for exposing the port.
 * **ingress**  An ingress will be used.  See [ingress settings](#ingress-settings) for more info
 * **route** On Openshift clusters, a route will be created with the name
@@ -237,8 +427,7 @@ Playpen Proxy.
 * **secureRoute** On Openshift clusters, a secure will will be created with the name
   `<service-name>-playpen`
 
-The default expose policy is `secureRoute` if on Openshift, and `nodePort` otherwise.
-
+The default expose policy is `none`.
 
 #### Ingress Settings
 The `spec.ingress` allows you to specify how an ingress
@@ -286,102 +475,6 @@ spec:
 
 If the playpen/service is named `greeting`, the playpen developer connection will be available at
 `http[s]://greeting-playpen-default.devcluster`
-
-## Local Playpens
-
-Local playpens allow you to route requests meant for the
-original service, down to your laptop.
-
-## Local Playpen Requirements
-* The 2nd port that is used for developer playpen connections
-must be set up using an [expose policy](#expose-policy)
-* The development cluster must expose any databases or services
-that local service needs to connect to.  If this is not possible
-try using a [remote playpen](#remote-playpens) instead.
-* The developer must know the credentials needed to connect
-to the playpen defined by the [authentication policy](#authentication-policy)
-
-### Connection URL
-
-The connection URL is needed by Quarkus or the [playpen cli](#playpen-cli)
-to connect to the playpen proxy and start a playpen for development.
-The scheme, host, port, and base path prefix are defined by the
-[expose policy](#expose-policy).
-
-`http[s]://<expose-policy-host-port/<possible-prefix-if-ingress>/local/<who-ami-i>`
-
-Notice where `local` is on the path.  This is important as it tells
-the proxy that you are creating a local playpen connection.
-
-The `who-ami-i` part of the path is also required.  This should 
-be the first name or something that identifies the human developer making
-the connection.  Basically `who-ami-i` is the name of the playpen
-session.
-
-The connection URL also can define connection parameters.
-
-`http[s]://foo/local/john?hijack=true`
-
-#### Local Config parameters
-
-* **hijack** - **true|false**.  If `true`, all requests to the 
-service will be sent to the developer's laptop.  
-* **path** - **path-prefix**.  If set, and `hijack=false` the playpen
-proxy will route requests to the developer's laptop if the 
-HTTP request has the path prefix specified
-* **query** - **\<name>=\<value>**  If set and `hijack=false` the playpen
-  proxy will route requests to the developer's laptop if the
-  HTTP request has a query parameter with name and value.
-* **header** - **\<name>=\<value>**  If set and `hijack=false` the playpen
-  proxy will route requests to the developer's laptop if the
-  HTTP request has a header with a specific value
-* **clientIp** - **client-ip-address** If set and `hijack=false` the playpen
-  proxy will route requests to the developer's laptop if the client ip address
-matches.
-
-Multiple session matches can be defined within the connection string
-
-If `hijack=false`, by default, if the `X-Playpen-Session` header or cookie
-is set within the request with a value of `who-ami-i`, then the request will
-be routed to the developer's laptop.
-
-### Examples
-These examples are connecting to a playpen for a service named `greeting`
-deployed in the `default` namespace.
-
-Example URL connection string if there's a nodeport used.  All requests
-will be sent to the developer's laptop
-
-`http://192.168.49.2:32999-SNAPSHOT/local/john?hijack=true`
-
-Example URL connection string if there's an ingress with
-`host` of `devcluster` used.  Requests that contain the `X-Playpen-Session`
-with a value of `john` will be routed to the developer's laptop
-
-`http://devcluster/greeting-playpen-default/local/john`
-
-Example URL connection string if there's an ingress with
-`domain` of `devcluster` used.  Requests that contain a query parameter
-`user` with a value of `joe` will be routed to the developer's laptop.
-Also requests that contain a path prefix of `users` will be rerouted.
-
-`http://greeting-playpen-default.devcluster/local/john?query=user=joe&path=/users`
-
-### Start the connection for Quarkus
-
-Make sure you have the [quarkus playpen extension](#enabling-a-playpen-for-a-service) set up. 
-
-```shell
-mvn quarkus:dev -Dquarkus.playpen.local="http://devcluster/greeting-playpen-default/local/john" \
-    -Dquarkus.playpen.credentials="mysecret"
-```
-
-The `quarkus.playpen.credentials` does not have to be set if there is no
-authentication policy for the playpen.
-
-This will build the app, make a connection to the playpen proxy, and start
-quarkus in dev mode.  When ending the dev mode session, the playpen connection
-will be disconnected and removed.
 
 ### Start the connection with the Playpen CLI
 
