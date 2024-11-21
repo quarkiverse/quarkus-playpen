@@ -17,7 +17,14 @@ minikube start
 eval $(minikube docker-env)
 ```
 
-## Build Project and IMage
+## Setup Namespace
+
+```shell
+kubectl create namespace samples
+kubectl config set-context --current --namespace=samples
+```
+
+## Build Project and Image
 
 ```shell
 mvnw clean package -Dquarkus.container-image.build=true
@@ -47,15 +54,7 @@ kubectl apply -f https://raw.githubusercontent.com/quarkiverse/quarkus-playpen/m
 kubectl apply -f https://raw.githubusercontent.com/quarkiverse/quarkus-playpen/main/operator/operator.yml
 ```
 
-## Setup Playpen default configuration
-
-Take a look at this [default config](playpen-default-config.yml).
-
-
-Execute it
-```shell
-kubectl apply -f playpen-default-config.yml
-```
+## Enable Playpen for Service
 
 Then create a playpen for your greeting service with the
 [playpen file](playpen.yml)
@@ -63,8 +62,8 @@ Then create a playpen for your greeting service with the
 kubectl apply -f playpen.yml
 ```
 
-You now have enable Quarkus Playpen for your service.  
-Let's take a look at the what was created.
+You now have enabled Playpen for your service.  
+Let's take a look at what was created.
 
 ```shell
 kubectl get services
@@ -76,29 +75,17 @@ See [docs](../README.md) for more info.
 ## Perform Live Coding Locally
 
 ```shell
-kubectl get service greeting-playpen
+mvnw quarkus:dev -Dplaypen.local.connect="greeting -hijack"
 ```
-
-Look for the Nodeport under the "Ports" column.  You'll
-need that port to connect to the greeting service playpen proxy.
-
-```shell
-mvnw quarkus:dev -Dquarkus.playpen.local="http://`minikube ip`:32233/local/john?hijack=true"
-```
-
-Replace `32233` with the nodeport of the `greeting-playpen` service.  Replace
-`john` with your first name.  The log should show that
-you've connected with the playpen and that your project has
-started in dev mode.
 
 Make a change to the project's code.  Go to the URL of the greeting
 service deployed in minikube.  The request will be handled by your local
 quarkus:dev session!  End quarkus:dev mode and refresh your browser.
 You'll see that the old service is now handling requests again.
 
-There are more ways to configure and run a local playpen.
-Specifically you can set up a session.  See [docs](../README.md) for
-more details.
+This example hijacks all requests that are sent to the service.
+See [docs](../README.md) on how it is possible
+to create a playpen that is specific to your development session.
 
 
 

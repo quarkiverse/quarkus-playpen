@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.acme</groupId>
     <artifactId>greeting-service</artifactId>
-    <version>0.1</version>
+    <version>1.0</version>
 
     <properties>
         <compiler-plugin.version>3.12.1</compiler-plugin.version>
