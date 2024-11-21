@@ -12,15 +12,26 @@ import io.smallrye.config.WithDefault;
 @ConfigRoot(phase = ConfigPhase.BUILD_TIME)
 @ConfigMapping(prefix = "playpen")
 public interface PlaypenConfig {
+
+    /**
+     * Config for local playpens
+     */
     interface Local {
 
         /**
+         * Connection string for local playpen
          *
+         * @see <a href="https://github.com/quarkiverse/quarkus-playpen">Playpen Docs</a>
          * @return
          */
         Optional<String> connect();
 
         /**
+         * Port forwards to localhost.
+         * Comma delimited list of
+         * [service|pod/][namespace/]name:[service port]:[local port]
+         *
+         * @see <a href="https://github.com/quarkiverse/quarkus-playpen">Playpen Docs</a>
          *
          * @return
          */
@@ -37,38 +48,48 @@ public interface PlaypenConfig {
     }
 
     /**
+     * Local playpen config
      *
      * @return
      */
     Local local();
 
+    /**
+     * Config for remote playpens
+     */
     interface Remote {
 
         /**
+         * Connection string for local playpen
          *
+         * @see <a href="https://github.com/quarkiverse/quarkus-playpen">Playpen Docs</a>
          * @return
          */
         Optional<String> connect();
 
         /**
+         * Create a temporary playpen pod from the source code in this project
          *
          * @return
          */
         Optional<String> create();
 
         /**
+         * Delete temporary playpen pod
          *
          * @return
          */
         Optional<String> delete();
 
         /**
+         * See if temporary playpen pod exists
          *
          * @return
          */
         Optional<String> exists();
 
         /**
+         * Get name and port of temporary pod
          *
          * @return
          */
@@ -76,6 +97,7 @@ public interface PlaypenConfig {
     }
 
     /**
+     * Remote playpen config
      *
      * @return
      */
