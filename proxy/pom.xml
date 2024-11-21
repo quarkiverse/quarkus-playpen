@@ -4,7 +4,7 @@
     <parent>
         <groupId>io.quarkiverse.playpen</groupId>
         <artifactId>quarkus-playpen-parent</artifactId>
-        <version>999-SNAPSHOT</version>
+        <version>1.0.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>playpen-proxy</artifactId>
