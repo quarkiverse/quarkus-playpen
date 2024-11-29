@@ -9,6 +9,11 @@
     </parent>
     <artifactId>playpen-proxy</artifactId>
     <name>Playpen Kubernetes Proxy</name>
+
+    <properties>
+        <quarkus.docker.buildx.platform>linux/amd64,linux/arm64</quarkus.docker.buildx.platform>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>io.quarkus</groupId>
